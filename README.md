@@ -2,7 +2,7 @@
 
 ## overview
 
-DualShock2(PlayStation2用)を様々なゲーム機に接続する。
+DualShock2を使った万能パッド変換器。
 
 開発環境はArduino Pro Mini相当。使用マイコンはATmega328P 5V 16MHz。
 
