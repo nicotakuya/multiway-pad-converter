@@ -10,19 +10,23 @@ DualShock2を使った万能パッド変換器。
 
 ![multiway_pad_converter_beta](https://user-images.githubusercontent.com/5597377/174503133-65779209-de5d-49ed-879a-056d9470c409.jpg)
 
+## 回路図
+
+pad_conv_schematics を参照。
+
 ## 対応ハード
 
 ・メガドライブ 3ボタンパッド
 
 ・メガドライブ 6ボタンパッド
 
-・メガドライブ XE-1AP(MDモード)
+・メガドライブ XE-1AP/MDモード
 
 ・メガドライブ セガマウス
 
 ・PCエンジン
 
-・PCエンジン XE-1AP(PCモード)
+・PCエンジン XE-1AP/PCモード
 
 ・ファミコン
 
@@ -36,9 +40,15 @@ DualShock2を使った万能パッド変換器。
 
 ・X68000
 
-・X68000 XE-1AP(PCモード)
+・X68000 XE-1AP/PCモード
  
 ・MSX アルカノイドコントローラ
+
+
+## 未対応。対応予定
+
+・PCエンジン マウス
+
 
 ## how to use
 
