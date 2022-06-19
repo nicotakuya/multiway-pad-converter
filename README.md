@@ -10,10 +10,6 @@ DualShock2を使った万能パッド変換器。
 
 ![multiway_pad_converter_beta](https://user-images.githubusercontent.com/5597377/174503133-65779209-de5d-49ed-879a-056d9470c409.jpg)
 
-## 回路図
-
-pad_conv_schematics を参照。
-
 ## 対応ハード
 
 ・メガドライブ 3ボタンパッド
@@ -49,9 +45,16 @@ pad_conv_schematics を参照。
 
 ・PCエンジン マウス
 
-
 ## how to use
 
 〇ボタンを押しっぱなしの状態で、電源オンまたはリセットすると、メニューが起動します。
 
 選択したモードはEEPROMに保存されます。以後、そのモードで起動します。
+
+## 回路図
+
+pad_conv_schematics を参照。
+
+## 部品リスト
+
+作成中
