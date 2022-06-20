@@ -53,13 +53,13 @@ DualShock2の丸(〇)ボタンを押しっぱなしの状態で、電源オン�
 
 ## 回路図
 
-pad_conv_schematics を参照。
+"pad_conv_schematics.png" を参照。
 
-## 部品リスト
+## parts list
 
 ・U1:ATmega328P
 
-・U2:74HC157
+・U2:74HC157 logic IC
 
 ・U3:3.3V regulator
 
@@ -69,21 +69,25 @@ pad_conv_schematics を参照。
 
 ・CN1:2x3 pin header
 
-・CN2:playstation
+・CN2:playstation pad connecter
 
-・CN3:Dsub9pin
+・CN3:Dsub9pin female
 
-・CN4:Dsub9pin
+・CN4:Dsub9pin female
 
-・CN5:mini DIN8pin
+・CN5:mini DIN8pin male
 
-・CN6:Dsub15pin
+・CN6:Dsub15pin female
 
-・CN7:super famicom
+・CN7:super famicom connecter
 
-・CN8:4pin pin header
+・CN8:4pin pin socket
 
 ・CN9:6pin pin header
+
+・C1/3/4:0.1 micro F
+
+・C2:100micro F
 
 ・R1/2/3:1.5k ohm
 
