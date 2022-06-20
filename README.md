@@ -4,7 +4,7 @@
 
 DualShock2を使った万能パッド変換器。
 
-開発環境はArduino Pro Mini相当。使用マイコンはATmega328P 5V 16MHz。
+開発環境はArduino IDE。使用マイコンはPro Mini相当（ATmega328P,5V,16MHz）。
 
 ![chart](https://user-images.githubusercontent.com/5597377/174469409-51839756-9196-42b9-89b2-ea5085d715d5.png)
 
