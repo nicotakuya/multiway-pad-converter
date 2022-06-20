@@ -57,4 +57,40 @@ pad_conv_schematics を参照。
 
 ## 部品リスト
 
-作成中
+・U1:ATmega328P
+
+・U2:74HC157
+
+・U3:3.3V regulator
+
+・X1:16MHz発振子
+
+・OLED Display https://akizukidenshi.com/catalog/g/gP-12031/
+
+・CN1:2x3 pin header
+
+・CN2:playstation
+
+・CN3:Dsub9pin
+
+・CN4:Dsub9pin
+
+・CN5:mini DIN8pin
+
+・CN6:Dsub15pin
+
+・CN7:super famicom
+
+・CN8:4pin pin header
+
+・CN9:6pin pin header
+
+・R1/2/3:1.5k ohm
+
+・R4/5/6/7/8/9/10:3.3k ohm
+
+・R11:10k ohm
+
+・PS1:
+
+・SW1:
