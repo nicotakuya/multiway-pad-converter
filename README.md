@@ -49,7 +49,7 @@
 
 DualShock2の丸(〇)ボタンを押しっぱなしの状態で、電源オンまたはリセットすると、メニューが起動します。
 
-モード番号はEEPROMに保存されます。以後、選択したモードで起動します。
+選択したモード番号はEEPROMに保存されます。以後、保存したモードで起動します。
 
 ## 回路図
 
@@ -73,9 +73,7 @@ DualShock2の丸(〇)ボタンを押しっぱなしの状態で、電源オン�
 
 ・CN2:playstation pad connecter
 
-・CN3:Dsub9pin female
-
-・CN4:Dsub9pin female
+・CN3/4:Dsub9pin female
 
 ・CN5:mini DIN8pin male
 
