@@ -2,9 +2,9 @@
 
 ## overview
 
-DualShock2を使った万能パッド変換器。
+オープンソースによる、万能パッド変換器を自作するプロジェクト。
 
-開発環境はArduino IDE。使用マイコンはPro Mini互換（ATmega328P,5V,16MHz）。
+開発環境はArduino IDE。使用マイコンはArduino Pro Mini互換（ATmega328P,5V,16MHz）。
 
 ![chart](https://user-images.githubusercontent.com/5597377/174469409-51839756-9196-42b9-89b2-ea5085d715d5.png)
 
@@ -57,11 +57,13 @@ DualShock2の丸(〇)ボタンを押しっぱなしの状態で、電源オン�
 
 ## parts list
 
+・Gamepad DualShock2
+
 ・U1:ATmega328P
 
 ・U2:74HC157 logic IC
 
-・U3:3.3V regulator
+・U3:3.3V voltage regulator
 
 ・X1:16MHz発振子
 
@@ -79,7 +81,7 @@ DualShock2の丸(〇)ボタンを押しっぱなしの状態で、電源オン�
 
 ・CN6:Dsub15pin female
 
-・CN7:super famicom connecter
+・CN7:super famicom pad connecter
 
 ・CN8:4pin pin socket
 
@@ -95,6 +97,6 @@ DualShock2の丸(〇)ボタンを押しっぱなしの状態で、電源オン�
 
 ・R11:10k ohm
 
-・PS1:
+・PS1:PS1:リセッタブルヒューズ(0.2A程度で切断を推奨) https://akizukidenshi.com/catalog/g/gP-12911/
 
-・SW1:
+・SW1:switch
