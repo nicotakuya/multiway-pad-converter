@@ -29,6 +29,7 @@
 #define TIMER_12USEC   (unsigned int)(0x10000-(T1HZ/83333))
 #define TIMER_22USEC   (unsigned int)(0x10000-(T1HZ/45454))
 #define TIMER_50USEC   (unsigned int)(0x10000-(T1HZ/20000))
+#define TIMER_100USEC  (unsigned int)(0x10000-(T1HZ/10000))
 #define TIMER_1MSEC    (unsigned int)(0x10000-(T1HZ/1000))
 
 #define USE_LCD   0 // LCD(AQM1602XA)0=disable / 1=enable
@@ -68,6 +69,42 @@ void timer_uswait(unsigned int limitcnt)
   TIFR1 |= (1 << TOV1);  // clear TOV1
   while(!(TIFR1 & (1 << TOV1)));
 }
+
+//---- ADC
+//---- AD init
+void adc_init(void)
+{
+//#define ADCLOCK  0 // clock 1/2 
+//#define ADCLOCK  1 // clock 1/2 
+#define ADCLOCK  2 // clock 1/4 
+//#define ADCLOCK  3 // clock 1/8 
+//#define ADCLOCK  4 // clock 1/16 
+//#define ADCLOCK  5 // clock 1/32 
+//#define ADCLOCK  6 // clock 1/64 
+//#define ADCLOCK  7 // clock 1/128     
+  DDRC &= ~((1<<1)|(1<<0));
+  PORTC &= ~((1<<1)|(1<<0));
+  ADCSRA = (1<<ADEN)|(0<<ADIE)|(1<<ADIF) | ADCLOCK;
+// ADEN: ADC enable
+// ADIF: ADC interrupt flag
+// ADIE: ADC interrupt enable 1=enable/0=disable
+  ADCSRB = 0;
+}
+
+//---- AD start
+unsigned char adc_get(char adchan)
+{
+  int tempcnt;
+  ADMUX = (1<<REFS0) | adchan; // select AD channel
+  timer_uswait(TIMER_10USEC);
+  ADCSRA |= (1<<ADSC);  // AD start
+  while((ADCSRA & (1<<ADIF))==0){
+  }
+  tempcnt = (int)ADCL; 
+  tempcnt += ((int)ADCH) << 8;
+  return((unsigned char)(tempcnt >> 2));
+}
+
 //----VRAM
 #define VRAMW 128
 #define VRAMH 64
@@ -78,7 +115,7 @@ unsigned char vram[VRAMSIZE];
 #define FONTW (TEXTZOOMX*8)
 #define FONTH (TEXTZOOMY*8)
 
-// vram all clear
+//---- vram all clear
 void vram_clear(void)
 {
   int vsize;
@@ -90,7 +127,7 @@ void vram_clear(void)
   }
 }
 
-// vram get
+//---- vram get
 char vram_pget(unsigned char x,unsigned char y){
   int adr;
   unsigned char mask;
@@ -104,7 +141,7 @@ char vram_pget(unsigned char x,unsigned char y){
   }
 }
 
-// vram put 
+//---- vram put 
 void vram_pset(unsigned char x,unsigned char y,char color){
   int adr;
   unsigned char mask;
@@ -120,7 +157,7 @@ void vram_pset(unsigned char x,unsigned char y,char color){
   }
 }
 
-// put chara( x,y,chキャラクターコード)
+//---- put chara( x,y,chキャラクターコード)
 void vram_putch(unsigned char textx,unsigned char texty, unsigned char ch)
 {
   char color;
@@ -479,6 +516,8 @@ void lcd_puthex(char x,char y,char num)
 #define FC_BITDAT2 (1<<3) // P2 data mask
 #define FC_BITCLK  (1<<4) // P1 clock mask
 #define FC_BITCLK2 (1<<5) // P2 clock mask
+#define FC_BITD2B4 (1<<6) // P2.bit4 data mask
+#define FC_BITD2B3 (1<<7) // P2.bit3 data mask
 #define UNTIL_FCCLK_H  while((FC_PIN&FC_BITCLK)==0)
 #define UNTIL_FCCLK_L  while((FC_PIN&FC_BITCLK)!=0)
 #define UNTIL_FCCLK2_H while((FC_PIN&FC_BITCLK2)==0)
@@ -487,6 +526,8 @@ void lcd_puthex(char x,char y,char num)
 #define FC_DAT_H   FC_PORT|=FC_BITDAT
 #define FC_DAT2_L  FC_PORT&=~FC_BITDAT2
 #define FC_DAT2_H  FC_PORT|=FC_BITDAT2
+#define FC_D2B4_L  FC_PORT&=~FC_BITD2B4
+#define FC_D2B4_H  FC_PORT|=FC_BITD2B4
 
 #define LATCH_PORT PORTB  // LATCH port
 #define LATCH_PIN PINB    // LATCH pin
@@ -603,9 +644,9 @@ void pad_init(void)
   padinput[7] = 0x80;
   padinput[8] = 0x80;
 
-  delay(50);
+  delay(60);
   pad_read(); // set analog mode
-  delay(16);
+  delay(20);
 }
 
 //------ (PS pad)send/recv 1Byte
@@ -697,9 +738,10 @@ void fcport_init(void)
 {
   LATCH_DDR &= ~LATCH_BIT;  // input
   LATCH_PORT |= LATCH_BIT;  // pull up
-  FC_DDR |= (FC_BITDAT + FC_BITDAT2);  // output
-  FC_DDR &= ~(FC_BITCLK + FC_BITCLK2); // input
-  FC_PORT |= (FC_BITDAT+FC_BITDAT2+FC_BITCLK+FC_BITCLK2);  // high
+  FC_DDR |=  (FC_BITDAT | FC_BITDAT2 | FC_BITD2B3 | FC_BITD2B4);  // output
+  FC_DDR &= ~(FC_BITCLK | FC_BITCLK2);  // input
+  FC_PORT |= (FC_BITDAT | FC_BITDAT2 | FC_BITD2B3 | FC_BITD2B4);  // high
+  FC_PORT |= (FC_BITCLK | FC_BITCLK2);  // pullup
 }
 
 //------ MD port initialize
@@ -930,7 +972,7 @@ void fc_digital(void)
 //   |  |  LATCH
 // --+  +--------------------------------
 
-// CLK
+// CLK2
 // ---------+--+--+--+--+--+--+--+-------
 //          |  |  |  |  |  |  |  |    
 
@@ -946,11 +988,12 @@ void fc_arkanoid(void)
 
   fcport_init();
   while(1){
+    sei();
     pad_read();
     if(PAD_MARU){
       FC_DAT_L; // button ON
     }else{
-      FC_DAT_H;
+      FC_DAT_H; // button OFF 
     }
     senddata = PAD_LX;
     if(0x80 & senddata){
@@ -958,20 +1001,68 @@ void fc_arkanoid(void)
     }else{
       FC_DAT2_L;
     }
+    cli();
     UNTIL_LATCH_H;
     UNTIL_LATCH_L;
     loopcnt = 8;
     while(loopcnt--){
+      UNTIL_FCCLK2_L;
+      UNTIL_FCCLK2_H;
+      senddata <<= 1;
       if(0x80 & senddata){
         FC_DAT2_H;
       }else{
         FC_DAT2_L;
       }
-      UNTIL_FCCLK2_L;
-      senddata <<= 1;
-      UNTIL_FCCLK2_H;
-      if((LATCH_PIN & LATCH_BIT)!=0)break;
     }
+    FC_DAT2_L;
+  }
+}
+
+// --- test
+void fc_arkanoid_volume(void)
+{
+  unsigned char loopcnt;
+  unsigned char senddata1,senddata2;
+
+  fcport_init();
+  while(1){
+    sei();
+    delay(2);
+    senddata1 = adc_get(0); // player1
+    senddata2 = adc_get(1); // player2
+    if(0x80 & senddata1){
+      FC_DAT2_H;
+    }else{
+      FC_DAT2_L;
+    }
+    if(0x80 & senddata2){
+      FC_D2B4_H;
+    }else{
+      FC_D2B4_L;
+    }
+    cli();
+    UNTIL_LATCH_H;
+    UNTIL_LATCH_L;
+    loopcnt = 8;
+    while(loopcnt--){
+      UNTIL_FCCLK2_L;
+      UNTIL_FCCLK2_H;
+      senddata1 <<= 1;
+      if(0x80 & senddata1){
+        FC_DAT2_H;
+      }else{
+        FC_DAT2_L;
+      }
+      senddata2 <<= 1;
+      if(0x80 & senddata2){
+        FC_D2B4_H;
+      }else{
+        FC_D2B4_L;
+      }
+    }
+    FC_DAT2_L;
+    FC_D2B4_L;
   }
 }
 
@@ -1041,20 +1132,29 @@ void fc_crazyclimber(void)
 //------ X68K digital/PCE digital
 void x68k_digital(void)
 {
-  unsigned char temp;
-
+  unsigned char temp,milisec;
+  milisec = 0;
   mdport_init();
   while(1){
-    pad_read();
-    temp = X68K_BITALL;
-    if(PAD_MARU ) temp &= ~X68K_BITA;
-    if(PAD_BATU ) temp &= ~X68K_BITB;
-    if(PAD_RIGHT) temp &= ~X68K_BITRIGHT;
-    if(PAD_LEFT ) temp &= ~X68K_BITLEFT;
-    if(PAD_DOWN ) temp &= ~X68K_BITDOWN;
-    if(PAD_UP   ) temp &= ~X68K_BITUP;
-    MD_PORT = temp;
-    delay(16);  // 1/60sec
+    if((REQ_PIN&REQ_BIT)==0){ // L = enable
+      delay(1);
+      if(milisec == 0){
+        milisec = 16;
+        pad_read();
+        temp = X68K_BITALL;
+        if(PAD_MARU ) temp &= ~X68K_BITA;
+        if(PAD_BATU ) temp &= ~X68K_BITB;
+        if(PAD_RIGHT) temp &= ~X68K_BITRIGHT;
+        if(PAD_LEFT ) temp &= ~X68K_BITLEFT;
+        if(PAD_DOWN ) temp &= ~X68K_BITDOWN;
+        if(PAD_UP   ) temp &= ~X68K_BITUP;
+        MD_PORT = temp;
+      }
+      milisec--;
+    }else{ // H = disable
+      MD_PORT = X68K_BITALL;
+      milisec = 0;
+    }  
   }
 }
 
@@ -1073,6 +1173,21 @@ void x68k_digital(void)
 // (7)REQ  :port B0
 // (8)GND
 // (9)ACK  :port D7
+
+// +-------------------+  X68K connector
+// |(5) (4) (3) (2) (1)|
+//  |                 |
+//   |(9) (8) (7) (6)|
+//   +---------------+
+// (1)DATA0:port D2
+// (2)DATA1:port D3
+// (3)DATA2:port D4
+// (4)DATA3:port D5
+// (5)VCC+5V
+// (6)LH   :port D6
+// (7)ACK  :port D7
+// (8)REQ  :port B0
+// (9)GND
 
 // REQ
 // ---+   +--------------------------------------------------------------------
@@ -1586,6 +1701,11 @@ void msx_arkanoid(void)
   }
 }
 
+PROGMEM const char str_adctest[]="ADC-TEST";
+PROGMEM const char str_padtest[]="PAD-TEST";
+PROGMEM const char str_timertest[]="TIMER-TEST";
+PROGMEM const char str_reqtest[]="REQ-TEST";
+
 //------ (debug)PlayStation pad input test
 void pad_test(void)
 {
@@ -1632,7 +1752,7 @@ void req_test(void)
   edgecnt=0;
   temp=0;
   mdport_init();
-//  lcd_putstr(0,0,"REQ TEST");
+//  lcd_putstr_pgm(0,0,str_reqtest);
   while(1){
     UNTIL_REQ_H;
     UNTIL_REQ_L;
@@ -1645,17 +1765,44 @@ void req_test(void)
     }
   }
 }
+//----- (debug)adc test
+void adc_test(void)
+{
+  unsigned char temp;
+
+#if USE_LCD      
+  lcd_putstr_pgm(0,0,str_adctest);
+  while (1){
+//    lcd_puthex(0,1,num);
+    delay(16);
+  }
+#endif
+#if USE_OLED
+  vram_clear();      
+  vram_putstr_pgm(0,0,str_adctest);
+  vram_putstr(0,16,"ch0");
+  vram_putstr(0,32,"ch1");
+  while(1){
+    temp = adc_get(0);
+    vram_puthex(64,16,temp);
+    temp = adc_get(1);
+    vram_puthex(64,32,temp);
+    oled_redraw();
+    delay(16);
+  }
+#endif
+}
 
 //----- (debug)timer test
 void timer_test(void)
 {
-  unsigned int num=0;
+  unsigned char num=0;
 
 #if USE_LCD      
-  lcd_putstr(0,0,"TIMER TEST");
+  lcd_putstr_pgm(0,0,str_timertest);
   while (1)
   {
-    lcd_putnum(0,1,num);
+    lcd_puthex(0,1,num);
     num++;
     delay(1000);
   }
@@ -1875,17 +2022,20 @@ void setup()
 #if USE_LCD
   lcd_init(); // AQM1602XA
 #endif
+  adc_init();
   pad_init();
-  delay(20);
+
   menu();
   launch();
 
+//  adc_test(); // debug
 //  pad_test(); //debug
 //  req_test(); //debug
 //  md_3button(); //debug
 //  md_3button_dummy(); //debug
 //  timer_test(); //debug
 //  dispsw_test();  //debug
+//  fc_arkanoid_volume();  // test
 }
 
 void loop() {
