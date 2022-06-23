@@ -82,8 +82,8 @@ void adc_init(void)
 //#define ADCLOCK  5 // clock 1/32 
 //#define ADCLOCK  6 // clock 1/64 
 //#define ADCLOCK  7 // clock 1/128     
-  DDRC &= ~((1<<1)|(1<<0));
-  PORTC &= ~((1<<1)|(1<<0));
+  DDRC &= ~((1<<1)|(1<<0));   // input
+  PORTC &= ~((1<<1)|(1<<0));  // no pull up
   ADCSRA = (1<<ADEN)|(0<<ADIE)|(1<<ADIF) | ADCLOCK;
 // ADEN: ADC enable
 // ADIF: ADC interrupt flag
@@ -526,6 +526,8 @@ void lcd_puthex(char x,char y,char num)
 #define FC_DAT_H   FC_PORT|=FC_BITDAT
 #define FC_DAT2_L  FC_PORT&=~FC_BITDAT2
 #define FC_DAT2_H  FC_PORT|=FC_BITDAT2
+#define FC_D2B3_L  FC_PORT&=~FC_BITD2B3
+#define FC_D2B3_H  FC_PORT|=FC_BITD2B3
 #define FC_D2B4_L  FC_PORT&=~FC_BITD2B4
 #define FC_D2B4_H  FC_PORT|=FC_BITD2B4
 
@@ -897,12 +899,23 @@ void sfc_digital(void)
 //   |(15)(14)(13)(12)(11)(10)( 9)|
 //   +----------------------------+
 
+// normal
 // (1)GND : ground
-// (7)P2_DAT:paddle data
-// (9)P2_CLK:paddle clock
+// (7)P2_DAT:player2 data(8bit)
+// (9)P2_CLK:player2 clock
 // (12)P/S : latch (low=latch / high=load)
-// (13)P1_DAT :button data(low=on)
-// (14)P1_CLK :button clock (not use)
+// (13)P1_DAT :player1 data(8bit)
+// (14)P1_CLK :player1 clock
+// (15)VCC : 5V
+
+// arkanoid
+// (1)GND : ground
+// (4):P2_D2B4:player2 paddle data(8bit)
+// (5):P2_D2B3:player2 button(low=on)
+// (7)P2_DAT:player1 paddle data(8bit)
+// (9)P2_CLK:player1/2 paddle clock
+// (12)P/S : latch (low=latch / high=load)
+// (13)P1_DAT :player1 button(low=on)
 // (15)VCC : 5V
 
 // famicom digital
@@ -983,10 +996,16 @@ void fc_digital(void)
 
 void fc_arkanoid(void)
 {
+  int centerx,x,posx;
   unsigned char loopcnt;
   unsigned char senddata;
 
   fcport_init();
+  pad_read();
+  delay(16);
+  posx = 128;
+  centerx = PAD_LX;
+  
   while(1){
     sei();
     pad_read();
@@ -995,7 +1014,16 @@ void fc_arkanoid(void)
     }else{
       FC_DAT_H; // button OFF 
     }
-    senddata = PAD_LX;
+    x = PAD_LX - centerx;
+
+    // ドリフト防止
+    if((x < MOUSE_THRESHOLD)&&(x > -MOUSE_THRESHOLD))x=0;
+
+    x >>= MOUSE_SPEED;
+    posx += x;
+    if(posx < 1 )posx=1;
+    if(posx >254)posx=254;
+    senddata = (unsigned char)posx;
     if(0x80 & senddata){
       FC_DAT2_H;
     }else{
@@ -1019,18 +1047,31 @@ void fc_arkanoid(void)
   }
 }
 
-// --- test
-void fc_arkanoid_volume(void)
+// --- 
+void fc_arkanoid_vs(void)
 {
   unsigned char loopcnt;
   unsigned char senddata1,senddata2;
 
+  DDRC &= ~((1<<2)|(1<<3));   // input
+  PORTC |= ((1<<2)|(1<<3));   // pull up
+
   fcport_init();
   while(1){
     sei();
-    delay(2);
-    senddata1 = adc_get(0); // player1
-    senddata2 = adc_get(1); // player2
+    delay(3);
+    if((PINC & (1<<2))==0){
+      FC_DAT_L; // button ON
+    }else{
+      FC_DAT_H; // button OFF
+    }
+    if((PINC & (1<<3))==0){
+      FC_D2B3_L; // button ON
+    }else{
+      FC_D2B3_H; // button OFF
+    }
+    senddata1 = adc_get(0); // player1 VR
+    senddata2 = adc_get(1); // player2 VR
     if(0x80 & senddata1){
       FC_DAT2_H;
     }else{
@@ -1047,14 +1088,14 @@ void fc_arkanoid_volume(void)
     loopcnt = 8;
     while(loopcnt--){
       UNTIL_FCCLK2_L;
-      UNTIL_FCCLK2_H;
       senddata1 <<= 1;
+      senddata2 <<= 1;
+      UNTIL_FCCLK2_H;
       if(0x80 & senddata1){
         FC_DAT2_H;
       }else{
         FC_DAT2_L;
       }
-      senddata2 <<= 1;
       if(0x80 & senddata2){
         FC_D2B4_H;
       }else{
@@ -1612,11 +1653,13 @@ void md_segamouse(void)
       pad_read();
       x = PAD_LX - centerx;
       y = centery - PAD_LY;
+
+      // ドリフト防止
       if((x < MOUSE_THRESHOLD)&&(x > -MOUSE_THRESHOLD))x=0;
       if((y < MOUSE_THRESHOLD)&&(y > -MOUSE_THRESHOLD))y=0;
+
       x >>= MOUSE_SPEED;
       y >>= MOUSE_SPEED;
-
       temp = 0;
       if(x < 0)temp |= (1<<0);  // minus
       if(y < 0)temp |= (1<<1);  // minus
@@ -1701,10 +1744,10 @@ void msx_arkanoid(void)
   }
 }
 
-PROGMEM const char str_adctest[]="ADC-TEST";
-PROGMEM const char str_padtest[]="PAD-TEST";
+PROGMEM const char str_adctest[]  ="ADC-TEST";
+PROGMEM const char str_padtest[]  ="PAD-TEST";
 PROGMEM const char str_timertest[]="TIMER-TEST";
-PROGMEM const char str_reqtest[]="REQ-TEST";
+PROGMEM const char str_reqtest[]  ="REQ-TEST";
 
 //------ (debug)PlayStation pad input test
 void pad_test(void)
@@ -1845,7 +1888,8 @@ void pad_wait(char blinkflag)
   }
 } 
 
-PROGMEM const char str_mode[16][17]={
+#define MENU_MAX  17
+PROGMEM const char str_mode[MENU_MAX][17]={
   "PAD-TEST        ",
   "MDRIVE  -3BUTTON",
   "MDRIVE  -6BUTTON",
@@ -1861,7 +1905,8 @@ PROGMEM const char str_mode[16][17]={
   "SFC     -MOUSE  ",
   "X68K    -DIGITAL",
   "X68K    -ANALOG ",
-  "MSX     -PADDLE "
+  "MSX     -PADDLE ",
+  "FC  -PADDLE-VS. "
 };
 
 PROGMEM const char str_howto[]="M E N U";
@@ -1876,7 +1921,7 @@ void menu(void)
   char modenum;
 
   modenum = EEPROM.read(EEPROMADDR);
-  if((modenum < 0)||(modenum > 15)){
+  if((modenum < 0)||(modenum >= MENU_MAX)){
     modenum = 0;  // data broken
   }else{
     pad_read();
@@ -1907,8 +1952,8 @@ void menu(void)
     delay(100);
     if((PAD_UP)||(PAD_LEFT))modenum--;
     if((PAD_DOWN)||(PAD_RIGHT))modenum++;
-    if(modenum < 0)modenum=15;
-    if(modenum > 15)modenum=0;
+    if(modenum < 0)modenum = MENU_MAX-1;
+    if(modenum >= MENU_MAX)modenum = 0;
     if(PAD_MARU){
       EEPROM.write(EEPROMADDR, modenum);
       vram_putstr_pgm(FONTW*1,FONTH*1,str_saved);
@@ -1998,6 +2043,9 @@ void launch(void)
   case 15://  MSX ARKANOID
     msx_arkanoid();
     break;
+  case 16:// FC ARKANOID VS.
+    fc_arkanoid_vs();  //
+    break;
   default:
     pad_test(); //debug
     break;
@@ -2024,7 +2072,6 @@ void setup()
 #endif
   adc_init();
   pad_init();
-
   menu();
   launch();
 
@@ -2034,8 +2081,6 @@ void setup()
 //  md_3button(); //debug
 //  md_3button_dummy(); //debug
 //  timer_test(); //debug
-//  dispsw_test();  //debug
-//  fc_arkanoid_volume();  // test
 }
 
 void loop() {
