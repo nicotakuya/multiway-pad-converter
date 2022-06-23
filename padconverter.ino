@@ -981,9 +981,9 @@ void fc_digital(void)
 
 // famicom arkanoid
 // P/S
-//   +--+
-//   |  |  LATCH
-// --+  +--------------------------------
+//    +-+
+//    | |  LATCH
+// ---+ +---------------------------------
 
 // CLK2
 // ---------+--+--+--+--+--+--+--+-------
@@ -1003,7 +1003,7 @@ void fc_arkanoid(void)
   fcport_init();
   pad_read();
   delay(16);
-  posx = 128;
+  posx = 128;   // software position
   centerx = PAD_LX;
   
   while(1){
@@ -1035,8 +1035,8 @@ void fc_arkanoid(void)
     loopcnt = 8;
     while(loopcnt--){
       UNTIL_FCCLK2_L;
-      UNTIL_FCCLK2_H;
       senddata <<= 1;
+      UNTIL_FCCLK2_H;
       if(0x80 & senddata){
         FC_DAT2_H;
       }else{
@@ -1889,7 +1889,8 @@ void pad_wait(char blinkflag)
 } 
 
 #define MENU_MAX  17
-PROGMEM const char str_mode[MENU_MAX][17]={
+#define MENU_LEN  (16+1)
+PROGMEM const char str_mode[MENU_MAX][MENU_LEN]={
   "PAD-TEST        ",
   "MDRIVE  -3BUTTON",
   "MDRIVE  -6BUTTON",
@@ -1921,7 +1922,7 @@ void menu(void)
   char modenum;
 
   modenum = EEPROM.read(EEPROMADDR);
-  if((modenum < 0)||(modenum >= MENU_MAX)){
+  if((modenum < 0)||(modenum > (MENU_MAX-1))){
     modenum = 0;  // data broken
   }else{
     pad_read();
@@ -1952,9 +1953,9 @@ void menu(void)
     delay(100);
     if((PAD_UP)||(PAD_LEFT))modenum--;
     if((PAD_DOWN)||(PAD_RIGHT))modenum++;
-    if(modenum < 0)modenum = MENU_MAX-1;
-    if(modenum >= MENU_MAX)modenum = 0;
-    if(PAD_MARU){
+    if(modenum < 0)modenum = (MENU_MAX-1);
+    if(modenum >(MENU_MAX-1))modenum = 0;
+    if(PAD_MARU){ // save eeprom
       EEPROM.write(EEPROMADDR, modenum);
       vram_putstr_pgm(FONTW*1,FONTH*1,str_saved);
       vram_putstr_pgm(FONTW*3,FONTH*3,str_ok);
@@ -1984,7 +1985,7 @@ void launch(void)
 { 
   char modenum;
   modenum = EEPROM.read(EEPROMADDR);
-  if((modenum < 0)||(modenum > 15)){
+  if((modenum < 0)||(modenum > (MENU_MAX-1))){
     modenum = 0;  // data broken
   }
 #if USE_LCD
