@@ -1343,6 +1343,7 @@ void x68k_analog(void)
     sendbuf[9] = 0;           // CH3 L
     sendbuf[10] = 0xf; //未調査
 
+    cli();
     UNTIL_REQ_H;
     UNTIL_REQ_L;
     timer_uswait(TIMER_4USEC); //
@@ -1368,6 +1369,7 @@ void x68k_analog(void)
       }
     }
     MD_PORT |= MD_BITALL;
+    sei();
   }
 }
 
@@ -1606,6 +1608,7 @@ void md_analog(void)
     sendbuf[9] = ch2 & 0x0f;  // CH2 L
     sendbuf[10] = 0xf;        //未調査
 
+    cli();
     UNTIL_REQ_H;
     UNTIL_REQ_L;
     timer_uswait(TIMER_4USEC);
@@ -1629,6 +1632,7 @@ void md_analog(void)
       }
     }
     MD_PORT |= MD_BITALL;
+    sei();
   }
 }
 
@@ -1761,72 +1765,75 @@ void md_segamouse(void)
 // ---- cyberstick to megadrive
 void cyber_to_megadrive(void)
 {
-  #define CYBERDAT_PORT PORTC  // 
+  #define CYBERDAT_PORT PORTC  // output data
   #define CYBERDAT_DDR  DDRC   // direction
   #define CYBERDAT_PIN  PINC   // input
-  #define CYBER_PORT PORTB     // 
+  #define CYBERDAT_MASK 0xf
+  #define CYBER_PORT PORTB     // output data
   #define CYBER_DDR  DDRB      // direction
   #define CYBER_PIN  PINB      // input
-  #define CYBER_BITLH  (1<<1)  // 
-  #define CYBER_BITACK (1<<2)  // 
-  #define CYBER_BITREQ (1<<3)  // 
+  #define CYBER_BITACK (1<<5)  // ACK mask
+  #define CYBER_BITREQ (1<<3)  // REQ mask
   #define CYBER_REQ_H  CYBER_PORT|=CYBER_BITREQ
   #define CYBER_REQ_L  CYBER_PORT&=~CYBER_BITREQ
-  #define UNTIL_CYBER_LH_H   while((CYBER_PIN&CYBER_BITLH)==0)
-  #define UNTIL_CYBER_LH_L   while(CYBER_PIN&CYBER_BITLH)
   #define UNTIL_CYBER_ACK_H  while((CYBER_PIN&CYBER_BITACK)==0)
   #define UNTIL_CYBER_ACK_L  while(CYBER_PIN&CYBER_BITACK)
+// not use
+//  #define CYBER_BITLH  (1<<1)  // LH mask
+//  #define UNTIL_CYBER_LH_H   while((CYBER_PIN&CYBER_BITLH)==0)
+//  #define UNTIL_CYBER_LH_L   while(CYBER_PIN&CYBER_BITLH)
 
-  unsigned char sendbuf[11];
   int datanum;
   unsigned char temp,x,y;
   unsigned char cyberbuff[11];
+  unsigned char sendbuf[11];
 
-  CYBERDAT_DDR  &= ~0x0f;    // direction input
-  CYBERDAT_PORT |= 0x0f;     // pull up
-  CYBER_DDR |= CYBER_BITREQ;   // direction output
-  CYBER_DDR &= ~(CYBER_BITLH|CYBER_BITACK);  // direction input
-  CYBER_PORT |= (CYBER_BITLH|CYBER_BITACK);  // pull up
+  CYBERDAT_DDR  &= ~CYBERDAT_MASK;    // direction input
+  CYBERDAT_PORT |= CYBERDAT_MASK;     // pull up
+  CYBER_DDR |= CYBER_BITREQ;          // direction output
+  CYBER_DDR &= ~CYBER_BITACK;  // direction input
+  CYBER_PORT |= CYBER_BITACK;  // pull up
   CYBER_REQ_H;
+// not use  
+//  CYBER_DDR &= ~CYBER_BITLH;  // direction input
+//  CYBER_PORT |= CYBER_BITLH;  // pull up
   mdport_init();
-
-#if USE_OLED
-  vram_clear();
-  vram_putstr_pgm(FONTW*0,FONTH*0,str_cyberstick);
-  oled_redraw();
-#endif
-
+  delay(10);
   while(1){
-    CYBER_REQ_L;
-    timer_uswait(TIMER_12USEC);
-    CYBER_REQ_H;
+    cli();
+    CYBER_REQ_L;  // request start
+    timer_uswait(TIMER_1USEC); // high speed mode
     for(datanum=0 ;datanum<11; datanum++){
+// not use
 //      if((datanum & 1)==0){
 //        UNTIL_CYBER_LH_L;
 //      }else{
 //        UNTIL_CYBER_LH_H;
 //      }
-
       UNTIL_CYBER_ACK_L;
-      timer_uswait(TIMER_2USEC);
-      cyberbuff[datanum] = CYBERDAT_PIN & 0x0f;
+      CYBER_REQ_H;
+      cyberbuff[datanum] = CYBERDAT_PIN & CYBERDAT_MASK;
       UNTIL_CYBER_ACK_H;
-      timer_uswait(TIMER_2USEC);
     }
+    sei();
 
 // self test mode
-#if USE_OLED
+#if 0
     vram_clear();
-    x = (2*FONTW)+64;
-    y = FONTH;
     temp = (cyberbuff[1]<<4) | cyberbuff[0];
-    vram_puthex(x,y,temp);
-    x=((cyberbuff[3]<<4) | cyberbuff[7])/(256/VRAMH);
-    y=((cyberbuff[2]<<4) | cyberbuff[6])/(256/VRAMH);
+    vram_puthex(64,FONTH*0,temp);
+    temp = (cyberbuff[3]<<4) | cyberbuff[7];
+    vram_puthex(64,FONTH*1,temp);
+    x = temp/(256/VRAMH);
+    temp = (cyberbuff[2]<<4) | cyberbuff[6];   
+    vram_puthex(64,FONTH*2,temp);
+    y = temp/(256/VRAMH);
     vram_line(x-16,y,x+16,y,1);
     vram_line(x,y-16,x,y+16,1);
     x = 32;
-    y=((cyberbuff[4]<<4) | cyberbuff[8])/(256/VRAMH);;
+    temp = (cyberbuff[4]<<4) | cyberbuff[8];
+    vram_puthex(64,FONTH*3,temp);
+    y = temp/(256/VRAMH);;
     vram_line(x-16,y,x+16,y,1);
     vram_line(x,y-16,x,y+16,1);
     oled_redraw();
@@ -1846,6 +1853,7 @@ void cyber_to_megadrive(void)
     sendbuf[9] = cyberbuff[8];   // CH2 L
     sendbuf[10] = 0xf;           // 未調査
 
+    cli();
     UNTIL_REQ_H;
     UNTIL_REQ_L;
     timer_uswait(TIMER_4USEC);
@@ -1869,6 +1877,7 @@ void cyber_to_megadrive(void)
       }
     }
     MD_PORT |= MD_BITALL;
+    sei();
   }
 }
 
@@ -2095,19 +2104,6 @@ void menu(void)
   }
 }
 
-#if USE_SERIAL
-//----
-void serial_test(void)
-{
-  int ret;
-
-  if (Serial.available() > 0) {
-    ret = Serial.read();
-    Serial.write((unsigned char)ret);
-//    lcd_puthex(0,1,(unsigned char)ret);
-  }
-}
-#endif // USE_SERIAL
 
 //----
 void launch(void)
@@ -2190,6 +2186,10 @@ void setup()
   Wire.begin();
 #if USE_SERIAL
   Serial.begin(115200);
+  Serial.print("hello\n");
+//  if (Serial.available() > 0) {
+//    ret = Serial.read();
+//  }
 #endif
 
 #if USE_OLED
@@ -2205,7 +2205,7 @@ void setup()
   menu();
   launch();
 
-//  cyber_to_megadrive();  // debug
+//  cyber_to_megadrive(); // jikken
 //  adc_test(); // debug
 //  pad_test(); //debug
 //  req_test(); //debug
