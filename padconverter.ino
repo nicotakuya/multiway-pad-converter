@@ -8,6 +8,39 @@
 #include <avr/pgmspace.h>
 #include "8x8font.h"      // font data
 
+#define MENU_MAX  17
+#define MENU_LEN  (16+1)
+PROGMEM const char str_mode[MENU_MAX][MENU_LEN]={
+  "PAD-TEST        ",
+  "MDRIVE  -3BUTTON",
+  "MDRIVE  -6BUTTON",
+  "MDRIVE  -ANALOG ",
+  "MDRIVE  -MOUSE  ",
+  "PCENG   -DIGITAL",
+  "PCENG   -ANALOG ",
+  "PCENG   -MOUSE  ",
+  "FAMI    -DIGITAL",
+  "FAMI    -PADDLE ",
+  "FAMI    -CRAZYCL",
+  "SFC     -DIGITAL",
+  "SFC     -MOUSE  ",
+  "X68K    -DIGITAL",
+  "X68K    -ANALOG ",
+  "MSX     -PADDLE ",
+  "FC  -PADDLE-VS. "
+};
+
+PROGMEM const char str_howto[]="M E N U";
+PROGMEM const char str_select[]="SELECT";
+PROGMEM const char str_saved[]="SAVED";
+PROGMEM const char str_ok[]="OK";
+PROGMEM const char str_running[]="RUNNING";
+PROGMEM const char str_cyberstick[] ="CYBERSTICK";
+PROGMEM const char str_adctest[]  ="ADC-TEST";
+PROGMEM const char str_padtest[]  ="PAD-TEST";
+PROGMEM const char str_timertest[]="TIMER-TEST";
+PROGMEM const char str_reqtest[]  ="REQ-TEST";
+
 #define CPUHZ 16000000  // CPU frequency[Hz]
 #define PRS1  1         // timer1 prescaler
 #define PRS2  128       // timer2 prescaler
@@ -382,7 +415,7 @@ void oled_redraw(void){
   while(addr < VRAMSIZE){  
     Wire.beginTransmission(OLEDADDR >> 1);
     Wire.write(0b01000000); //control(Continuation + data)
-    for(i=0; i<16; i++){  
+    for(i=0; i<8; i++){  
      Wire.write(vram[addr++]);
     }
     Wire.endTransmission();
@@ -1047,31 +1080,37 @@ void fc_arkanoid(void)
   }
 }
 
-// --- 
+// ---- arkanoid II VS mode
 void fc_arkanoid_vs(void)
 {
+#define VSMODE_PORT PORTC
+#define VSMODE_DDR  DDRC
+#define VSMODE_PIN  PINC
+#define VSMODE_BITBTN1	(1<<2) // player1 button
+#define VSMODE_BITBTN2	(1<<3) // player2 button
+
   unsigned char loopcnt;
   unsigned char senddata1,senddata2;
 
-  DDRC &= ~((1<<2)|(1<<3));   // input
-  PORTC |= ((1<<2)|(1<<3));   // pull up
+  VSMODE_DDR &= ~(VSMODE_BITBTN1|VSMODE_BITBTN2);   // input
+  VSMODE_PORT |= (VSMODE_BITBTN1|VSMODE_BITBTN2);   // pull up
 
   fcport_init();
   while(1){
     sei();
     delay(3);
-    if((PINC & (1<<2))==0){
+    if((VSMODE_PIN & VSMODE_BITBTN1)==0){
       FC_DAT_L; // button ON
     }else{
       FC_DAT_H; // button OFF
     }
-    if((PINC & (1<<3))==0){
+    if((VSMODE_PIN & VSMODE_BITBTN2)==0){
       FC_D2B3_L; // button ON
     }else{
       FC_D2B3_H; // button OFF
     }
-    senddata1 = adc_get(0); // player1 VR
-    senddata2 = adc_get(1); // player2 VR
+    senddata1 = adc_get(0); // player1 Volume
+    senddata2 = adc_get(1); // player2 Volume
     if(0x80 & senddata1){
       FC_DAT2_H;
     }else{
@@ -1107,7 +1146,7 @@ void fc_arkanoid_vs(void)
   }
 }
 
-// famicom crazy climber
+// ---- famicom crazy climber
 // [left hand][right hand]
 // UP          3KAKU      --turn--> LEFT  button
 // DOWN        BATU       --turn--> RIGHT button
@@ -1259,6 +1298,15 @@ void x68k_digital(void)
 //    |       |     |     |     |     |     |     |     |     |     |     |
 //    +-------+     +-----+     +-----+     +-----+     +-----+     +-----+
 
+#define CYBER_BITA      (1<<3)
+#define CYBER_BITB      (1<<2)
+#define CYBER_BITC      (1<<1)
+#define CYBER_BITD      (1<<0)
+#define CYBER_BITE1     (1<<3)
+#define CYBER_BITE2     (1<<2)
+#define CYBER_BITSTART  (1<<1)
+#define CYBER_BITSELECT (1<<0)
+
 void x68k_analog(void)
 {
   unsigned char sendbuf[11];
@@ -1269,22 +1317,22 @@ void x68k_analog(void)
   while(1){
     pad_read();
     temp = 0x0f;
-    if(PAD_R1 ) temp &= ~(1<<3);  // A
-    if(PAD_R2 ) temp &= ~(1<<2);  // B
-    if(PAD_L1 ) temp &= ~(1<<1);  // C
-    if(PAD_L2 ) temp &= ~(1<<0);  // D
+    if(PAD_R1) temp &= ~CYBER_BITA;
+    if(PAD_R2) temp &= ~CYBER_BITB;
+    if(PAD_L1) temp &= ~CYBER_BITC;
+    if(PAD_L2) temp &= ~CYBER_BITD;
     sendbuf[0] = temp;
 
     temp = 0x0f;
-    if(PAD_MARU  ) temp &= ~(1<<3);  // E1
-    if(PAD_BATU  ) temp &= ~(1<<2);  // E2
-    if(PAD_START ) temp &= ~(1<<1);  // START
-    if(PAD_SELECT) temp &= ~(1<<0);  // SELECT
+    if(PAD_MARU  ) temp &= ~CYBER_BITE1;
+    if(PAD_BATU  ) temp &= ~CYBER_BITE2;
+    if(PAD_START ) temp &= ~CYBER_BITSTART;
+    if(PAD_SELECT) temp &= ~CYBER_BITSELECT;
     sendbuf[1] = temp;
 
-    ch0 = PAD_LY;  // 
-    ch1 = PAD_LX;  // 
-    ch2 = PAD_RY;  // 
+    ch0 = PAD_LY;  
+    ch1 = PAD_LX;  
+    ch2 = PAD_RY;  
     sendbuf[2] = ch0 >> 4;    // CH0 H
     sendbuf[3] = ch1 >> 4;    // CH1 H
     sendbuf[4] = ch2 >> 4;    // CH2 H
@@ -1532,17 +1580,17 @@ void md_analog(void)
   while(1){
     pad_read();
     temp = 0x0f;
-    if(PAD_MARU  ) temp &= ~(1<<3);  // E1
-    if(PAD_BATU  ) temp &= ~(1<<2);  // E2
-    if(PAD_START ) temp &= ~(1<<1);  // START
-    if(PAD_SELECT) temp &= ~(1<<0);  // SELECT
+    if(PAD_MARU  ) temp &= ~CYBER_BITE1;
+    if(PAD_BATU  ) temp &= ~CYBER_BITE2;
+    if(PAD_START ) temp &= ~CYBER_BITSTART;
+    if(PAD_SELECT) temp &= ~CYBER_BITSELECT;
     sendbuf[0] = temp;
 
     temp = 0x0f;
-    if(PAD_R1 ) temp &= ~(1<<3);  // A
-    if(PAD_R2 ) temp &= ~(1<<2);  // B
-    if(PAD_L1 ) temp &= ~(1<<1);  // C
-    if(PAD_L2 ) temp &= ~(1<<0);  // D
+    if(PAD_R1 ) temp &= ~CYBER_BITA;
+    if(PAD_R2 ) temp &= ~CYBER_BITB;
+    if(PAD_L1 ) temp &= ~CYBER_BITC;
+    if(PAD_L2 ) temp &= ~CYBER_BITD;
     sendbuf[1] = temp;
 
     ch1 = PAD_LX;  //
@@ -1710,6 +1758,120 @@ void md_segamouse(void)
   }
 }
 
+// ---- cyberstick to megadrive
+void cyber_to_megadrive(void)
+{
+  #define CYBERDAT_PORT PORTC  // 
+  #define CYBERDAT_DDR  DDRC   // direction
+  #define CYBERDAT_PIN  PINC   // input
+  #define CYBER_PORT PORTB     // 
+  #define CYBER_DDR  DDRB      // direction
+  #define CYBER_PIN  PINB      // input
+  #define CYBER_BITLH  (1<<1)  // 
+  #define CYBER_BITACK (1<<2)  // 
+  #define CYBER_BITREQ (1<<3)  // 
+  #define CYBER_REQ_H  CYBER_PORT|=CYBER_BITREQ
+  #define CYBER_REQ_L  CYBER_PORT&=~CYBER_BITREQ
+  #define UNTIL_CYBER_LH_H   while((CYBER_PIN&CYBER_BITLH)==0)
+  #define UNTIL_CYBER_LH_L   while(CYBER_PIN&CYBER_BITLH)
+  #define UNTIL_CYBER_ACK_H  while((CYBER_PIN&CYBER_BITACK)==0)
+  #define UNTIL_CYBER_ACK_L  while(CYBER_PIN&CYBER_BITACK)
+
+  unsigned char sendbuf[11];
+  int datanum;
+  unsigned char temp,x,y;
+  unsigned char cyberbuff[11];
+
+  CYBERDAT_DDR  &= ~0x0f;    // direction input
+  CYBERDAT_PORT |= 0x0f;     // pull up
+  CYBER_DDR |= CYBER_BITREQ;   // direction output
+  CYBER_DDR &= ~(CYBER_BITLH|CYBER_BITACK);  // direction input
+  CYBER_PORT |= (CYBER_BITLH|CYBER_BITACK);  // pull up
+  CYBER_REQ_H;
+  mdport_init();
+
+#if USE_OLED
+  vram_clear();
+  vram_putstr_pgm(FONTW*0,FONTH*0,str_cyberstick);
+  oled_redraw();
+#endif
+
+  while(1){
+    CYBER_REQ_L;
+    timer_uswait(TIMER_12USEC);
+    CYBER_REQ_H;
+    for(datanum=0 ;datanum<11; datanum++){
+//      if((datanum & 1)==0){
+//        UNTIL_CYBER_LH_L;
+//      }else{
+//        UNTIL_CYBER_LH_H;
+//      }
+
+      UNTIL_CYBER_ACK_L;
+      timer_uswait(TIMER_2USEC);
+      cyberbuff[datanum] = CYBERDAT_PIN & 0x0f;
+      UNTIL_CYBER_ACK_H;
+      timer_uswait(TIMER_2USEC);
+    }
+
+// self test mode
+#if USE_OLED
+    vram_clear();
+    x = (2*FONTW)+64;
+    y = FONTH;
+    temp = (cyberbuff[1]<<4) | cyberbuff[0];
+    vram_puthex(x,y,temp);
+    x=((cyberbuff[3]<<4) | cyberbuff[7])/(256/VRAMH);
+    y=((cyberbuff[2]<<4) | cyberbuff[6])/(256/VRAMH);
+    vram_line(x-16,y,x+16,y,1);
+    vram_line(x,y-16,x,y+16,1);
+    x = 32;
+    y=((cyberbuff[4]<<4) | cyberbuff[8])/(256/VRAMH);;
+    vram_line(x-16,y,x+16,y,1);
+    vram_line(x,y-16,x,y+16,1);
+    oled_redraw();
+    delay(16);
+    continue;
+#endif
+
+    sendbuf[0] = cyberbuff[1];   // E1/ E2/STA/SEL
+    sendbuf[1] = cyberbuff[0];   //  A/  B/  C/  D
+    sendbuf[2] = cyberbuff[3];   // CH1 H
+    sendbuf[3] = cyberbuff[2];   // CH0 H
+    sendbuf[4] = cyberbuff[5];   // CH3 H
+    sendbuf[5] = cyberbuff[4];   // CH2 H
+    sendbuf[6] = cyberbuff[7];   // CH1 L
+    sendbuf[7] = cyberbuff[6];   // CH0 L
+    sendbuf[8] = cyberbuff[9];   // CH3 L
+    sendbuf[9] = cyberbuff[8];   // CH2 L
+    sendbuf[10] = 0xf;           // 未調査
+
+    UNTIL_REQ_H;
+    UNTIL_REQ_L;
+    timer_uswait(TIMER_4USEC);
+
+    for(datanum=0 ;datanum<11; datanum++){
+      if((datanum & 1)==0){
+        MD_LH_L;
+      }else{
+        MD_LH_H;
+      }
+      temp = (MD_PORT & ~MD_BITUDLR);
+      temp |= (sendbuf[datanum] << MD_DAT_SHIFT);
+      MD_PORT = temp;
+      MD_ACK_L;
+      timer_uswait(TIMER_12USEC);
+      MD_ACK_H;
+      if((datanum & 1)==0){
+        timer_uswait(TIMER_4USEC);
+      }else{
+        timer_uswait(TIMER_22USEC);
+      }
+    }
+    MD_PORT |= MD_BITALL;
+  }
+}
+
 // MSX arkanoid
 void msx_arkanoid(void)
 {
@@ -1744,11 +1906,6 @@ void msx_arkanoid(void)
   }
 }
 
-PROGMEM const char str_adctest[]  ="ADC-TEST";
-PROGMEM const char str_padtest[]  ="PAD-TEST";
-PROGMEM const char str_timertest[]="TIMER-TEST";
-PROGMEM const char str_reqtest[]  ="REQ-TEST";
-
 //------ (debug)PlayStation pad input test
 void pad_test(void)
 {
@@ -1764,7 +1921,7 @@ void pad_test(void)
     delay(16);
   }
 #endif
-#if USE_OLED      
+#if USE_OLED
   while(1){
     pad_read();
     vram_clear();
@@ -1887,34 +2044,6 @@ void pad_wait(char blinkflag)
     delay(16);
   }
 } 
-
-#define MENU_MAX  17
-#define MENU_LEN  (16+1)
-PROGMEM const char str_mode[MENU_MAX][MENU_LEN]={
-  "PAD-TEST        ",
-  "MDRIVE  -3BUTTON",
-  "MDRIVE  -6BUTTON",
-  "MDRIVE  -ANALOG ",
-  "MDRIVE  -MOUSE  ",
-  "PCENG   -DIGITAL",
-  "PCENG   -ANALOG ",
-  "PCENG   -MOUSE  ",
-  "FAMI    -DIGITAL",
-  "FAMI    -PADDLE ",
-  "FAMI    -CRAZYCL",
-  "SFC     -DIGITAL",
-  "SFC     -MOUSE  ",
-  "X68K    -DIGITAL",
-  "X68K    -ANALOG ",
-  "MSX     -PADDLE ",
-  "FC  -PADDLE-VS. "
-};
-
-PROGMEM const char str_howto[]="M E N U";
-PROGMEM const char str_select[]="SELECT";
-PROGMEM const char str_saved[]="SAVED";
-PROGMEM const char str_ok[]="OK";
-PROGMEM const char str_running[]="RUNNING";
 
 //----select menu
 void menu(void)
@@ -2076,6 +2205,7 @@ void setup()
   menu();
   launch();
 
+//  cyber_to_megadrive();  // debug
 //  adc_test(); // debug
 //  pad_test(); //debug
 //  req_test(); //debug
