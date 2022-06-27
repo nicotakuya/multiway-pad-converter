@@ -85,7 +85,7 @@ DualShock2の丸(〇)ボタンを押しっぱなしの状態で、電源オン�
 
 ・CN8:4pin pin socket
 
-・CN9:6pin pin header
+・CN9:6pin pin header https://akizukidenshi.com/catalog/g/gM-11007/
 
 ・C1/3/4:0.1 micro F
 
