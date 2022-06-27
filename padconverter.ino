@@ -8,6 +8,12 @@
 #include <avr/pgmspace.h>
 #include "8x8font.h"      // font data
 
+#define USE_LCD   0      // LCD(AQM1602XA):0=disable / 1=enable
+#define USE_OLED  1      // OLED(SSD1306) :0=disable / 1=enable
+#define USE_CYBERSTICK 0 // cyberstick:0=not use/1=use
+#define USE_SERIAL 0     // serial port:0=not use/1=use
+#define EEPROMADDR 0     // address of mode number
+
 #define MENU_MAX  17
 #define MENU_LEN  (16+1)
 PROGMEM const char str_mode[MENU_MAX][MENU_LEN]={
@@ -64,11 +70,6 @@ PROGMEM const char str_reqtest[]  ="REQ-TEST";
 #define TIMER_50USEC   (unsigned int)(0x10000-(T1HZ/20000))
 #define TIMER_100USEC  (unsigned int)(0x10000-(T1HZ/10000))
 #define TIMER_1MSEC    (unsigned int)(0x10000-(T1HZ/1000))
-
-#define USE_LCD   0 // LCD(AQM1602XA)0=disable / 1=enable
-#define USE_OLED  1 // OLED(SSD1306) 0=disable / 1=enable
-#define USE_SERIAL 0
-#define EEPROMADDR 0 // mode number
 
 // timer initialize
 void timer_init(void)
@@ -190,7 +191,7 @@ void vram_pset(unsigned char x,unsigned char y,char color){
   }
 }
 
-//---- put chara( x,y,chキャラクターコード)
+//---- put chara( x,y,ch)
 void vram_putch(unsigned char textx,unsigned char texty, unsigned char ch)
 {
   char color;
@@ -1881,7 +1882,7 @@ void cyber_to_megadrive(void)
   }
 }
 
-// MSX arkanoid
+//---- MSX arkanoid
 void msx_arkanoid(void)
 {
   unsigned char loopcnt;
@@ -2200,17 +2201,19 @@ void setup()
 #if USE_LCD
   lcd_init(); // AQM1602XA
 #endif
+
+#if USE_CYBERSTICK
+  cyber_to_megadrive();
+#endif
+
   adc_init();
   pad_init();
   menu();
   launch();
 
-//  cyber_to_megadrive(); // jikken
 //  adc_test(); // debug
 //  pad_test(); //debug
 //  req_test(); //debug
-//  md_3button(); //debug
-//  md_3button_dummy(); //debug
 //  timer_test(); //debug
 }
 
