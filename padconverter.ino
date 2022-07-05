@@ -3,16 +3,19 @@
 // by takuya matsubara
 // (from DualShock2 to FC/SFC/MD/PCE/X68K/MSX)
 
+#define USE_LCD   0      // LCD(AQM1602XA):0=not use / 1=use
+#define USE_OLED  1      // OLED(SSD1306) :0=not use / 1=use
+#define USE_CYBERSTICK 0 // cyberstick    :0=not use / 1=use
+#define USE_SERIAL 0     // serial port   :0=not use / 1=use
+#define EEPROMADDR 0     // address of mode number
+
+#if USE_LCD+USE_OLED
 #include <Wire.h>
+#endif
 #include <EEPROM.h>
 #include <avr/pgmspace.h>
+#include <avr/interrupt.h>
 #include "8x8font.h"      // font data
-
-#define USE_LCD   0      // LCD(AQM1602XA):0=disable / 1=enable
-#define USE_OLED  1      // OLED(SSD1306) :0=disable / 1=enable
-#define USE_CYBERSTICK 0 // cyberstick:0=not use/1=use
-#define USE_SERIAL 0     // serial port:0=not use/1=use
-#define EEPROMADDR 0     // address of mode number
 
 #define MENU_MAX  17
 #define MENU_LEN  (16+1)
@@ -165,7 +168,7 @@ void vram_clear(void)
 char vram_pget(unsigned char x,unsigned char y){
   int adr;
   unsigned char mask;
-  if((x>=VRAMW)||(y>=VRAMH))return;
+  if((x>=VRAMW)||(y>=VRAMH))return(0);
   adr = x+(VRAMW*(y/8));
   mask = (1<<(y % 8));
   if(vram[adr] & mask){
@@ -377,6 +380,7 @@ void oled_command2(unsigned char data1,unsigned char data2)
 // SSD1306: initialize
 void oled_init(void)
 {
+  Wire.setClock(400000);  
   delay(50);
   oled_command2(SET_MULTIPLEX_RATIO , 0x3F);  // multiplex ratio
   oled_command2(SET_DISPLAY_OFFSET,0);
@@ -392,7 +396,6 @@ void oled_init(void)
   oled_command2(SET_CHARGE_PUMP , 0x14);  // Enable charge pump
   oled_command(SET_DISPLAY_ON);
   delay(1);
-  
   vram_line(0,0,VRAMW-1,VRAMH-1,1);
   vram_line(VRAMW-1,0,0,VRAMH-1,1);
   oled_redraw();
@@ -863,9 +866,9 @@ void sfc_mouse(void)
 // super famicom digital
 //  DAT
 //    15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
-//   +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+// --+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--
 //   | B  Y SL ST UP DW LT RT  A  X  L  R|           |
-// --+--+--+--+--+--+--+--+--+--+--+--+--+           +--
+//   +--+--+--+--+--+--+--+--+--+--+--+--+           +
 #define SFC_BITB      (1<<15)
 #define SFC_BITY      (1<<14)
 #define SFC_BITSELECT (1<<13)
@@ -1374,48 +1377,6 @@ void x68k_analog(void)
   }
 }
 
-// (debug)dummy button data
-void md_3button_dummy(void)
-{
-  unsigned char senddata1,senddata2;
-  unsigned char loopcnt,num;
-
-  mdport_init();
-  num = 0;
-  loopcnt = 0;
-  senddata1 = MD_BITALL;
-  senddata2 = MD_BITALL & ~MD_BITLR;
-  while(1){
-    senddata1 = MD_BITALL;
-    senddata2 = MD_BITALL & ~MD_BITLR;
-
-    if(num == 7) senddata1 &= ~MD_BITSTART;
-    if(num == 6) senddata1 &= ~MD_BITB;    
-    if(num == 4) senddata1 &= ~MD_BITRIGHT;
-    if(num == 3) senddata1 &= ~MD_BITLEFT; 
-    if(num == 2) senddata1 &= ~MD_BITDOWN; 
-    if(num == 1) senddata1 &= ~MD_BITUP;   
-
-    if(num == 8) senddata2 &= ~MD_BITSTART;
-    if(num == 5) senddata2 &= ~MD_BITA;    
-    if(num == 2) senddata2 &= ~MD_BITDOWN; 
-    if(num == 1) senddata2 &= ~MD_BITUP;   
-
-    UNTIL_REQ_H;
-    MD_PORT = senddata1;
-
-    UNTIL_REQ_L;
-    MD_PORT = senddata2;
-
-    loopcnt++;
-    if (loopcnt >= 60){
-      loopcnt=0;
-      num++;
-      if(num > 8)num=0;
-    }
-  }
-}
-
 //------ Mega Drive digital 3-button pad
 // 7pin  | 9pin | 6pin | 4pin | 3pin | 2pin | 1pin |
 //-------+------+------+------+------+------+------+-------
@@ -1882,6 +1843,71 @@ void cyber_to_megadrive(void)
   }
 }
 
+//------ PC Engine mouse
+void pce_mouse(void)
+{
+  unsigned char sendbuf[4];
+  int datanum,x,y,centerx,centery;
+  unsigned char temp,button;
+  char timeout;
+
+  mdport_init();
+  pad_read();
+  centerx = PAD_LX;
+  centery = PAD_LY;
+  delay(16);
+  sendbuf[0] = 0x00;    // X  bit7～4
+  sendbuf[1] = 0x00;    // X  bit3～0
+  sendbuf[2] = 0x00;    // Y  bit7～4
+  sendbuf[3] = 0x00;    // Y  bit3～0
+  
+  while(1){    
+    cli();
+    UNTIL_REQ_L;
+    TIMERTEMP = 0;
+    while((REQ_PIN&REQ_BIT)==0){ // until REQ=H
+      if(TIMERTEMP < TIMERLIMIT)continue;
+      pad_read();
+
+      x = centerx - PAD_LX;
+      y = centery - PAD_LY;
+      // ドリフト防止
+      if((x < MOUSE_THRESHOLD)&&(x > -MOUSE_THRESHOLD))x=0;
+      if((y < MOUSE_THRESHOLD)&&(y > -MOUSE_THRESHOLD))y=0;
+      x >>= MOUSE_SPEED;
+      y >>= MOUSE_SPEED;
+      sendbuf[0] = (unsigned char)((x >> 4) & 0x0f);  
+      sendbuf[1] = (unsigned char)(x & 0x0f);         
+      sendbuf[2] = (unsigned char)((y >> 4)& 0x0f);   
+      sendbuf[3] = (unsigned char)(y & 0x0f);  
+
+      temp = MD_PORT | (X68K_BITA | X68K_BITB);
+      if(PAD_MARU) temp &= ~X68K_BITA;
+      if(PAD_BATU) temp &= ~X68K_BITB;
+      MD_PORT = temp;
+
+      UNTIL_REQ_H;
+      break;
+    }
+
+    for(datanum=0;datanum<4;datanum++){
+      UNTIL_REQ_L;
+      temp = (MD_PORT & ~MD_BITUDLR);
+      temp |= (sendbuf[datanum] << MD_DAT_SHIFT);
+      MD_PORT = temp;
+      
+      if(datanum < 3){       
+        timeout = timeout_reqest(1);
+        if(timeout)break;
+      }
+    }
+    UNTIL_REQ_L;
+    sei();
+    timer_uswait(TIMER_4USEC);
+//    MD_PORT |= MD_BITALL;
+  }
+}
+
 //---- MSX arkanoid
 void msx_arkanoid(void)
 {
@@ -2056,23 +2082,27 @@ void pad_wait(char blinkflag)
 } 
 
 //----select menu
-void menu(void)
+char menu(void)
 {
   char modenum;
 
   modenum = EEPROM.read(EEPROMADDR);
   if((modenum < 0)||(modenum > (MENU_MAX-1))){
     modenum = 0;  // data broken
+                  // goto menu
   }else{
     pad_read();
     delay(16);    
     if((padinput[3]==0xFF)&&(padinput[4]==0xFF)){
-      return; // 
+      // no button
+      return(modenum);
     }
   }
+#if USE_OLED
   vram_clear();
   vram_putstr_pgm(FONTW*0,FONTH*1,str_howto);
   oled_redraw();
+#endif
   delay(3000);
   
   while(1){
@@ -2087,30 +2117,32 @@ void menu(void)
   oled_redraw();
 #endif
     pad_wait(1);
+#if USE_OLED
     vram_clear();
     oled_redraw();
+#endif    
     delay(100);
     if((PAD_UP)||(PAD_LEFT))modenum--;
     if((PAD_DOWN)||(PAD_RIGHT))modenum++;
     if(modenum < 0)modenum = (MENU_MAX-1);
     if(modenum >(MENU_MAX-1))modenum = 0;
-    if(PAD_MARU){ // save eeprom
-      EEPROM.write(EEPROMADDR, modenum);
-      vram_putstr_pgm(FONTW*1,FONTH*1,str_saved);
-      vram_putstr_pgm(FONTW*3,FONTH*3,str_ok);
-      oled_redraw();
-      pad_wait(1);
-      break;
-    }
+    if(PAD_MARU) break;
   }
+  // save eeprom
+  EEPROM.write(EEPROMADDR, modenum);
+#if USE_OLED
+  vram_putstr_pgm(FONTW*1,FONTH*1,str_saved);
+  vram_putstr_pgm(FONTW*3,FONTH*3,str_ok);
+  oled_redraw();
+#endif
+  pad_wait(1);
+  return(modenum);
 }
 
 
 //----
-void launch(void)
+void launch(char modenum)
 { 
-  char modenum;
-  modenum = EEPROM.read(EEPROMADDR);
   if((modenum < 0)||(modenum > (MENU_MAX-1))){
     modenum = 0;  // data broken
   }
@@ -2145,6 +2177,7 @@ void launch(void)
     x68k_analog();  //
     break;
   case 7:// PCE MOUSE
+    pce_mouse();
     break;
   case 8:// FC DIGITAL
     fc_digital();
@@ -2182,9 +2215,19 @@ void launch(void)
 //----
 void setup()
 {
-  char x,y;
+  char x,y,modenum;
   timer_init();
+
+#if USE_LCD+USE_OLED
   Wire.begin();
+#endif
+#if USE_OLED
+  oled_init();  // SSD1306
+#endif
+#if USE_LCD
+  lcd_init(); // AQM1602XA
+#endif
+
 #if USE_SERIAL
   Serial.begin(115200);
   Serial.print("hello\n");
@@ -2193,23 +2236,15 @@ void setup()
 //  }
 #endif
 
-#if USE_OLED
-  Wire.setClock(400000);  
-  oled_init();  // SSD1306
-#endif
-
-#if USE_LCD
-  lcd_init(); // AQM1602XA
-#endif
-
 #if USE_CYBERSTICK
   cyber_to_megadrive();
 #endif
 
   adc_init();
   pad_init();
-  menu();
-  launch();
+
+  modenum = menu();
+  launch(modenum);
 
 //  adc_test(); // debug
 //  pad_test(); //debug
