@@ -815,6 +815,7 @@ void sfc_mouse(void)
   int movecnt,centerx,centery;
 
   fcport_init();
+  cli();
   pad_read();
   centerx = PAD_LX;
   centery = PAD_LY;
@@ -888,6 +889,7 @@ void sfc_digital(void)
   unsigned int senddata,temp;
 
   fcport_init();
+  cli();
   senddata = SFC_BITALL;
   while(1){
     TIMERTEMP = 0;
@@ -981,6 +983,7 @@ void fc_digital(void)
 
   senddata = 0xff;
   fcport_init();
+  cli();
   while(1){
     TIMERTEMP = 0;
     while((LATCH_PIN&LATCH_BIT)==0){ //until LATCH=H
@@ -1162,6 +1165,7 @@ void fc_crazyclimber(void)
   unsigned char senddata1,senddata2;
 
   fcport_init();
+  cli();
   while(1){
     pad_read();
     senddata1 = FC_BITALL;  // gamepad1
@@ -1219,6 +1223,7 @@ void x68k_digital(void)
   unsigned char temp,milisec;
   milisec = 0;
   mdport_init();
+  cli();
   while(1){
     if((REQ_PIN&REQ_BIT)==0){ // L = enable
       delay(1);
@@ -1389,7 +1394,7 @@ void md_3button(void)
   senddata1 = MD_BITALL;
   senddata2 = MD_BITALL & ~MD_BITLR;
   mdport_init();
-
+  cli();
   while(1){
     TIMERTEMP = 0;
     while((REQ_PIN&REQ_BIT)==0){ // until REQ=H
@@ -1458,6 +1463,7 @@ void md_6button(void)
   paddata2 = (MD_BITALL & ~MD_BITLR) +BITTXRX;
   paddata3 = MD_BITALL +BITTXRX;
   mdport_init();
+  cli();
   UNTIL_REQ_L;
   while(1){
     UNTIL_REQ_H;
@@ -1635,6 +1641,7 @@ void md_segamouse(void)
   char timeout;
 
   mdport_init();
+  cli();
   MD_DDR &= ~MD_BITACK; // direction input
 
   pad_read();
@@ -1915,6 +1922,7 @@ void msx_arkanoid(void)
   unsigned char senddata;
 
   mdport_init();
+  cli();
   while(1){
     pad_read();
     if(PAD_MARU ){ // button ON
@@ -2085,7 +2093,6 @@ void pad_wait(char blinkflag)
 char menu(void)
 {
   char modenum;
-
   modenum = EEPROM.read(EEPROMADDR);
   if((modenum < 0)||(modenum > (MENU_MAX-1))){
     modenum = 0;  // data broken
@@ -2107,17 +2114,16 @@ char menu(void)
   
   while(1){
 #if USE_LCD
-  lcd_puthex(0,0,modenum);
-  lcd_putstr_pgm(0,1,str_mode[modenum]);
-#endif
-#if USE_OLED
-  vram_clear();
-  vram_putstr_pgm(FONTW*1,FONTH*3,str_select);
-  vram_putstr_pgm(FONTW*0,FONTH*0,str_mode[modenum]);
-  oled_redraw();
-#endif
+    lcd_puthex(0,0,modenum);
+    lcd_putstr_pgm(0,1,str_mode[modenum]);
     pad_wait(1);
+#endif
 #if USE_OLED
+    vram_clear();
+    vram_putstr_pgm(FONTW*1,FONTH*3,str_select);
+    vram_putstr_pgm(FONTW*0,FONTH*0,str_mode[modenum]);
+    oled_redraw();
+    pad_wait(1);
     vram_clear();
     oled_redraw();
 #endif    
