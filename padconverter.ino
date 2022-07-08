@@ -17,7 +17,7 @@
 #include <avr/interrupt.h>
 #include "8x8font.h"      // font data
 
-#define MENU_MAX  17
+#define MENU_MAX  18
 #define MENU_LEN  (16+1)
 PROGMEM const char str_mode[MENU_MAX][MENU_LEN]={
   "PAD-TEST        ",
@@ -36,7 +36,8 @@ PROGMEM const char str_mode[MENU_MAX][MENU_LEN]={
   "X68K    -DIGITAL",
   "X68K    -ANALOG ",
   "MSX     -PADDLE ",
-  "FC  -PADDLE-VS. "
+  "MSX-PADDLE-VOL  ",
+  "FAMI-PADDLE-VS. "
 };
 
 PROGMEM const char str_howto[]="M E N U";
@@ -105,6 +106,15 @@ void timer_uswait(unsigned int limitcnt)
   TCNT1 = limitcnt;
   TIFR1 |= (1 << TOV1);  // clear TOV1
   while(!(TIFR1 & (1 << TOV1)));
+}
+
+//----- wait mili second
+void timer_delay(int milisec)
+{
+  while(milisec--){
+    TCNT2 = 0;
+    while(TCNT2 < TCNT2_1MSEC);
+  }
 }
 
 //---- ADC
@@ -327,10 +337,11 @@ void vram_line(int x1 ,int y1 ,int x2 ,int y2 ,char color)
 
 // scroll
 void vram_scroll(char x1,char y1){
-  char x,y,color;
-  for(y=0;y<8;y++){
-    for(x=0;x<16;x++){
-      color=vram_pget(x+x1, y+y1);
+  unsigned char x,y;
+  char color;
+  for(y=0;y<VRAMH;y++){
+    for(x=0;x<VRAMW;x++){
+      color = vram_pget(x+x1, y+y1);
       vram_pset(x,y,color);
     }
   }
@@ -381,7 +392,7 @@ void oled_command2(unsigned char data1,unsigned char data2)
 void oled_init(void)
 {
   Wire.setClock(400000);  
-  delay(50);
+  timer_delay(50);
   oled_command2(SET_MULTIPLEX_RATIO , 0x3F);  // multiplex ratio
   oled_command2(SET_DISPLAY_OFFSET,0);
   oled_command(SET_DISPLAY_STARTLINE);  // starting address of display RAM
@@ -395,7 +406,7 @@ void oled_init(void)
   oled_command2(SET_ADDRESSING_MODE  ,0); 
   oled_command2(SET_CHARGE_PUMP , 0x14);  // Enable charge pump
   oled_command(SET_DISPLAY_ON);
-  delay(1);
+  timer_delay(1);
   vram_line(0,0,VRAMW-1,VRAMH-1,1);
   vram_line(VRAMW-1,0,0,VRAMH-1,1);
   oled_redraw();
@@ -432,7 +443,7 @@ void oled_redraw(void){
 void lcd_init(void)
 {
   #define LCDCNTR 12   //LCD contrast(0-63)
-  delay(50);
+  timer_delay(50);
   lcd_cmdwrite(0x38);  //function set(normal instruction)
   lcd_cmdwrite(0x39);  //function set(extension instruction)
   lcd_cmdwrite(0x14);  //internal osc freq.
@@ -468,14 +479,14 @@ void lcd_locate(char x,char y)
 void lcd_cmdwrite(unsigned char command)
 {
   lcd_write(0x00,command);
-  delay(1);
+  timer_delay(1);
 }
 
 // AQM1602XA:write character
 void lcd_datawrite(unsigned char data)
 {
   lcd_write(0x40,data);
-  delay(1);
+  timer_delay(1);
 }
 
 // AQM1602XA:clear
@@ -542,7 +553,7 @@ void lcd_puthex(char x,char y,char num)
 #endif // USE_LCD
 
 //----
-#define MOUSE_SPEED  4  // mouse speed
+#define MOUSE_SPEED  5  // mouse speed
 #define MOUSE_THRESHOLD 24  // mouse threshold
 
 // FC/SFC
@@ -683,9 +694,9 @@ void pad_init(void)
   padinput[7] = 0x80;
   padinput[8] = 0x80;
 
-  delay(60);
+  timer_delay(60);
   pad_read(); // set analog mode
-  delay(20);
+  timer_delay(20);
 }
 
 //------ (PS pad)send/recv 1Byte
@@ -775,7 +786,7 @@ void pad_read(void)
 //------ FC port initialize
 void fcport_init(void)
 {
-  LATCH_DDR &= ~LATCH_BIT;  // input
+  LATCH_DDR &= ~LATCH_BIT;  // direction input
   LATCH_PORT |= LATCH_BIT;  // pull up
   FC_DDR |=  (FC_BITDAT | FC_BITDAT2 | FC_BITD2B3 | FC_BITD2B4);  // output
   FC_DDR &= ~(FC_BITCLK | FC_BITCLK2);  // input
@@ -786,10 +797,10 @@ void fcport_init(void)
 //------ MD port initialize
 void mdport_init(void)
 {
-  REQ_DDR &= ~REQ_BIT;  // input
+  REQ_DDR &= ~REQ_BIT;  // direction input
   REQ_PORT |= REQ_BIT;  // pull up
-  MD_DDR |= MD_BITALL;  // output
-  MD_PORT |= MD_BITALL; // high
+  MD_DDR |= MD_BITALL;  // direction output
+  MD_PORT |= MD_BITALL; // output high
 }
 
 // SFC connector
@@ -819,7 +830,7 @@ void sfc_mouse(void)
   pad_read();
   centerx = PAD_LX;
   centery = PAD_LY;
-  delay(16);
+  timer_delay(16);
   
   while(1){
     pad_read();
@@ -1042,7 +1053,7 @@ void fc_arkanoid(void)
 
   fcport_init();
   pad_read();
-  delay(16);
+  timer_delay(16);
   posx = 128;   // software position
   centerx = PAD_LX;
   
@@ -1087,7 +1098,12 @@ void fc_arkanoid(void)
   }
 }
 
-// ---- arkanoid II VS mode
+// ----appendix: arkanoid II VS mode
+// please add this parts
+//  PORTC0:P1 Volume(100k ohm B curve)
+//  PORTC1:P2 Volume(100k ohm B curve)
+//  PORTC2:P1 button
+//  PORTC3:P2 button
 void fc_arkanoid_vs(void)
 {
 #define VSMODE_PORT PORTC
@@ -1099,13 +1115,13 @@ void fc_arkanoid_vs(void)
   unsigned char loopcnt;
   unsigned char senddata1,senddata2;
 
-  VSMODE_DDR &= ~(VSMODE_BITBTN1|VSMODE_BITBTN2);   // input
+  VSMODE_DDR &= ~(VSMODE_BITBTN1|VSMODE_BITBTN2);   // direction input
   VSMODE_PORT |= (VSMODE_BITBTN1|VSMODE_BITBTN2);   // pull up
 
   fcport_init();
   while(1){
     sei();
-    delay(3);
+    timer_delay(3);
     if((VSMODE_PIN & VSMODE_BITBTN1)==0){
       FC_DAT_L; // button ON
     }else{
@@ -1226,7 +1242,7 @@ void x68k_digital(void)
   cli();
   while(1){
     if((REQ_PIN&REQ_BIT)==0){ // L = enable
-      delay(1);
+      timer_delay(1);
       if(milisec == 0){
         milisec = 16;
         pad_read();
@@ -1647,7 +1663,7 @@ void md_segamouse(void)
   pad_read();
   centerx = PAD_LX;
   centery = PAD_LY;
-  delay(16);
+  timer_delay(16);
 
   sendbuf[0] = 0x00;    // header
   sendbuf[1] = 0x0b;    // header
@@ -1731,7 +1747,16 @@ void md_segamouse(void)
   }
 }
 
-// ---- cyberstick to megadrive
+// ---- appendix:cyberstick to megadrive
+// please add this parts
+// PORTC0:dsub9pin 1
+// PORTC1:dsub9pin 2
+// PORTC2:dsub9pin 3
+// PORTC3:dsub9pin 4
+// VCC   :dsub9pin 5
+// PORTB5:dsub9pin 7(ACK)
+// PORTB3:dsub9pin 8(REQ)
+// GND   :dsub9pin 9
 void cyber_to_megadrive(void)
 {
   #define CYBERDAT_PORT PORTC  // output data
@@ -1767,7 +1792,7 @@ void cyber_to_megadrive(void)
 //  CYBER_DDR &= ~CYBER_BITLH;  // direction input
 //  CYBER_PORT |= CYBER_BITLH;  // pull up
   mdport_init();
-  delay(10);
+  timer_delay(10);
   while(1){
     cli();
     CYBER_REQ_L;  // request start
@@ -1806,7 +1831,7 @@ void cyber_to_megadrive(void)
     vram_line(x-16,y,x+16,y,1);
     vram_line(x,y-16,x,y+16,1);
     oled_redraw();
-    delay(16);
+    timer_delay(16);
     continue;
 #endif
 
@@ -1862,7 +1887,7 @@ void pce_mouse(void)
   pad_read();
   centerx = PAD_LX;
   centery = PAD_LY;
-  delay(16);
+  timer_delay(16);
   sendbuf[0] = 0x00;    // X  bit7～4
   sendbuf[1] = 0x00;    // X  bit3～0
   sendbuf[2] = 0x00;    // Y  bit7～4
@@ -1918,35 +1943,104 @@ void pce_mouse(void)
 //---- MSX arkanoid
 void msx_arkanoid(void)
 {
+  int centerx,x,posx;
+  unsigned char loopcnt;
+  unsigned char senddata;
+#define ARKA_BITDAT   X68K_BITUP  
+#define ARKA_BITBTN   X68K_BITDOWN
+#define ARKA_BITCLK   X68K_BITA
+
+  mdport_init();
+  MD_DDR &= ~ARKA_BITCLK; // direction input
+  pad_read();
+  timer_delay(16);
+  posx = 128;   // software position
+  centerx = PAD_LX;
+  cli();
+  while(1){
+    UNTIL_REQ_L;
+    UNTIL_REQ_H;
+    pad_read();
+    if(PAD_MARU ){ // button ON
+      MD_PORT &= ~ARKA_BITBTN;
+    }else{
+      MD_PORT |= ARKA_BITBTN;
+    }
+    x = PAD_LX - centerx;
+
+    // ドリフト防止
+    if((x < MOUSE_THRESHOLD)&&(x > -MOUSE_THRESHOLD))x=0;
+
+    x >>= MOUSE_SPEED;
+    posx += x;
+    if(posx < 1 )posx=1;
+    if(posx >254)posx=254;
+    senddata = (unsigned char)posx;    
+    loopcnt = 8;
+    while(loopcnt--){
+      if(0x80 & senddata){
+        MD_PORT |= ARKA_BITDAT;
+      }else{
+        MD_PORT &= ~ARKA_BITDAT;
+      }
+      // until CLK=low
+      while((MD_PIN & ARKA_BITCLK)!=0){
+        if((REQ_PIN & REQ_BIT)==0)break;
+      }
+      if((REQ_PIN & REQ_BIT)==0)break;
+      while((MD_PIN & ARKA_BITCLK)==0); // until CLK=high
+      senddata <<= 1;
+    }
+    MD_PORT &= ~ARKA_BITDAT;
+  }
+}
+
+//---- appendix:MSX arkanoid vol edition
+// please add this parts
+//  PORTC0:Player Volume(100k ohm B curve)
+//  PORTC2:Player button
+void msx_arkanoid_vol(void)
+{
+#define VOL_PORT PORTC
+#define VOL_DDR  DDRC
+#define VOL_PIN  PINC
+#define VOL_BITBTN  (1<<2) // player button
+#define ARKA_BITDAT   X68K_BITUP  
+#define ARKA_BITBTN   X68K_BITDOWN
+#define ARKA_BITCLK   X68K_BITA
   unsigned char loopcnt;
   unsigned char senddata;
 
   mdport_init();
+  MD_DDR &= ~ARKA_BITCLK;   // direction input
+  VOL_DDR &= ~VOL_BITBTN;   // direction input
+  VOL_PORT |= VOL_BITBTN;   // pull up
   cli();
   while(1){
-    pad_read();
-    if(PAD_MARU ){ // button ON
-      MD_PORT &= ~X68K_BITDOWN;
+    UNTIL_REQ_L;
+    UNTIL_REQ_H;
+    if((VOL_PIN & VOL_BITBTN)==0){  // button ON
+      MD_PORT &= ~ARKA_BITBTN;
     }else{
-      MD_PORT |= X68K_BITDOWN;
+      MD_PORT |= ARKA_BITBTN;
     }
-    senddata = PAD_LX;
-    UNTIL_LATCH_H;
-    UNTIL_LATCH_L;
+    senddata = adc_get(0); // player1 Volume
     loopcnt = 8;
     while(loopcnt--){
       if(0x80 & senddata){
-        MD_PORT |= X68K_BITUP;
+        MD_PORT |= ARKA_BITDAT;
       }else{
-        MD_PORT &= ~X68K_BITUP;
+        MD_PORT &= ~ARKA_BITDAT;
       }
-      timer_uswait(TIMER_4USEC);
-      MD_PORT &= ~X68K_BITA;
-      timer_uswait(TIMER_22USEC);
-      MD_PORT |= X68K_BITA;
+      // until CLK=low
+      while((MD_PIN & ARKA_BITCLK)!=0){
+        if((REQ_PIN & REQ_BIT)==0)break;
+      }
+      if((REQ_PIN & REQ_BIT)==0)break;
+      while((MD_PIN & ARKA_BITCLK)==0); // until CLK=high
       senddata <<= 1;
-      if((LATCH_PIN & LATCH_BIT)!=0)break;
     }
+    MD_PORT &= ~ARKA_BITDAT;
   }
 }
 
@@ -1962,7 +2056,7 @@ void pad_test(void)
       y = 1;
       lcd_puthex(x,y,padinput[i+3]);
     }
-    delay(16);
+    timer_delay(16);
   }
 #endif
 #if USE_OLED
@@ -1984,29 +2078,113 @@ void pad_test(void)
     vram_line(x-16,y,x+16,y,1);
     vram_line(x,y-16,x,y+16,1);
     oled_redraw();
-    delay(16);
+    timer_delay(16);
   }
 #endif
+}
+
+void req_test2(void)
+{
+  unsigned char temp;
+  unsigned char i,x,y;
+  unsigned char buff[128];
+
+  MD_DDR &= ~MD_BITALL;
+  MD_PORT |= MD_BITALL;
+  REQ_DDR &= ~REQ_BIT;
+  REQ_PORT |= REQ_BIT;
+  while(1){
+    cli();
+    while((MD_PIN & X68K_BITA)!=0);
+
+    for(x=0; x<128; x++){
+      temp = 0xff;      
+      for(i=0; i<6; i++){
+        temp &= 0xC0 + (MD_PIN >> 2);
+        if((REQ_PIN&REQ_BIT)==0) temp &= ~(1<<6);
+      }
+      buff[x] = temp;
+    }
+    vram_clear();
+    for(x=0; x<128; x++){
+      for(i=0; i<7; i++){
+        y = (i*8)+4;
+        if(buff[x] & (1<<i)) y = y-3;
+        vram_pset(x,y,1);
+      }
+    }
+    sei();
+    oled_redraw();
+  }  
+}
+
+// debug
+void trig_test(void)
+{
+  unsigned char edgecnt,edgedir,edge;
+  char milisec;
+  
+  mdport_init();
+  MD_DDR &= ~(MD_BITA);
+  vram_clear();      
+  vram_putstr(0,0,"TRIG");
+  oled_redraw();
+  while(1){
+    cli();
+    edgedir=0;
+    edgecnt=0;
+    milisec=0;
+    TCNT2=0;
+    while(1){
+      if(TCNT2 >= TCNT2_1MSEC){
+        TCNT2=0;
+        milisec++;
+        if(milisec >= 16)break;
+      }  
+//      if((REQ_PIN & REQ_BIT)!=0){
+      if((MD_PIN & X68K_BITA)!=0){
+        edge = 1;
+      }else{
+        edge = 0;
+      }
+      if(edgedir==edge){
+        edgedir ^= 1;
+        if(edge)edgecnt++;
+      }
+    }
+    vram_puthex(0,16,edgecnt);
+    sei();
+    oled_redraw();
+  }
 }
 
 //------ (debug)input request
 void req_test(void)
 {
-  unsigned char edgecnt,temp;
+  unsigned char edgecnt;
   edgecnt=0;
-  temp=0;
   mdport_init();
-//  lcd_putstr_pgm(0,0,str_reqtest);
+#if USE_LCD      
+  lcd_putstr_pgm(0,0,str_reqtest);
+#endif
+#if USE_OLED
+  vram_clear();      
+  vram_putstr_pgm(0,0,str_reqtest);
+  oled_redraw();
+#endif
   while(1){
+    cli();
     UNTIL_REQ_H;
     UNTIL_REQ_L;
-
     edgecnt++;
-    if (edgecnt >= 60){
-      edgecnt = 0;
-      temp++;
-//      lcd_puthex(0,1, (char)temp);
-    }
+#if USE_LCD      
+    lcd_puthex(0,1, (char)edgecnt);
+#endif
+#if USE_OLED
+    vram_puthex(0,16,edgecnt);
+    sei();
+    oled_redraw();
+#endif
   }
 }
 //----- (debug)adc test
@@ -2017,8 +2195,9 @@ void adc_test(void)
 #if USE_LCD      
   lcd_putstr_pgm(0,0,str_adctest);
   while (1){
-//    lcd_puthex(0,1,num);
-    delay(16);
+    temp = adc_get(0);
+    lcd_puthex(0,1,temp);
+    timer_delay(16);
   }
 #endif
 #if USE_OLED
@@ -2032,7 +2211,7 @@ void adc_test(void)
     temp = adc_get(1);
     vram_puthex(64,32,temp);
     oled_redraw();
-    delay(16);
+    timer_delay(16);
   }
 #endif
 }
@@ -2048,15 +2227,17 @@ void timer_test(void)
   {
     lcd_puthex(0,1,num);
     num++;
-    delay(1000);
+    timer_delay(1000);
   }
 #endif
-#if USE_OLED      
+#if USE_OLED
+  vram_clear();      
+  vram_putstr_pgm(0,0,str_timertest);
   while(1){
-    vram_puthex(0,0,num);
+    vram_puthex(0,16,num);
     oled_redraw();
     num++;
-    delay(1000);
+    timer_delay(1000);
   }
 #endif
 }
@@ -2071,7 +2252,7 @@ void pad_wait(char blinkflag)
   while(1){
     pad_read();
     if((padinput[3]==0xFF)&&(padinput[4]==0xFF))break;
-    delay(16);
+    timer_delay(16);
   }
   while(1){
     if(blinkflag){
@@ -2085,7 +2266,7 @@ void pad_wait(char blinkflag)
     }
     pad_read();
     if((padinput[3]!=0xFF)||(padinput[4]!=0xFF))break;
-    delay(16);
+    timer_delay(16);
   }
 } 
 
@@ -2099,7 +2280,7 @@ char menu(void)
                   // goto menu
   }else{
     pad_read();
-    delay(16);    
+    timer_delay(16);    
     if((padinput[3]==0xFF)&&(padinput[4]==0xFF)){
       // no button
       return(modenum);
@@ -2110,7 +2291,7 @@ char menu(void)
   vram_putstr_pgm(FONTW*0,FONTH*1,str_howto);
   oled_redraw();
 #endif
-  delay(3000);
+  timer_delay(3000);
   
   while(1){
 #if USE_LCD
@@ -2127,7 +2308,7 @@ char menu(void)
     vram_clear();
     oled_redraw();
 #endif    
-    delay(100);
+    timer_delay(100);
     if((PAD_UP)||(PAD_LEFT))modenum--;
     if((PAD_DOWN)||(PAD_RIGHT))modenum++;
     if(modenum < 0)modenum = (MENU_MAX-1);
@@ -2144,7 +2325,6 @@ char menu(void)
   pad_wait(1);
   return(modenum);
 }
-
 
 //----
 void launch(char modenum)
@@ -2209,7 +2389,10 @@ void launch(char modenum)
   case 15://  MSX ARKANOID
     msx_arkanoid();
     break;
-  case 16:// FC ARKANOID VS.
+  case 16://  MSX ARKANOID vol edition
+    msx_arkanoid_vol();
+    break;
+  case 17:// FC ARKANOID VS.
     fc_arkanoid_vs();  //
     break;
   default:
@@ -2254,8 +2437,10 @@ void setup()
 
 //  adc_test(); // debug
 //  pad_test(); //debug
-//  req_test(); //debug
 //  timer_test(); //debug
+//  trig_test(); //debug
+//  req_test(); //debug
+//  req_test2();  //debug
 }
 
 void loop() {
