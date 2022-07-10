@@ -1353,10 +1353,10 @@ void x68k_analog(void)
 {
   unsigned char sendbuf[12];
   int datanum;
-  unsigned char ch0,ch1,ch2,temp,speedmode;
+  unsigned char ch0,ch1,ch2,temp,speedmode,newspeed;
   unsigned int timea,timeb,timec,timed;
 
-//  sendbuf[11] = 0xff; //
+  speedmode = 0;  // fast
   mdport_init();
   MD_LH_L;
   while(1){
@@ -1390,7 +1390,6 @@ void x68k_analog(void)
     sendbuf[8] = ch2 & 0x0f;  // CH2 L
     sendbuf[9] = 0;           // CH3 L
 
-    speedmode = 0;
     if(speedmode == 0){
       timea=TIMER_12USEC;    
       timeb=TIMER_4USEC;
@@ -1412,6 +1411,7 @@ void x68k_analog(void)
       timec=TIMER_88USEC;
       timed=TIMER_22USEC;
     }
+    newspeed = 0xff;
     UNTIL_REQ_H;
     UNTIL_REQ_L;
     timer_uswait(TIMER_4USEC);
@@ -1428,11 +1428,13 @@ void x68k_analog(void)
         MD_LH_INVERT;
         timer_uswait(timeb);
       }else{
-//        if(REQ_PIN & REQ_BIT){
-//          speedmode = datanum/2; // speed setting
-//        }
         MD_ACK_L;
         timer_uswait(timec);
+        if(newspeed == 0xff){ // speed setting
+          if(REQ_PIN & REQ_BIT){
+            newspeed = datanum/2;
+          }
+        }
         MD_ACK_H;
         MD_LH_INVERT;
         timer_uswait(timed);
@@ -1440,6 +1442,8 @@ void x68k_analog(void)
     }
     MD_PORT |= MD_BITUDLR;
     MD_LH_L;
+    if(newspeed > 3)newspeed = 3;
+    speedmode = newspeed;
     sei();
   }
 }
