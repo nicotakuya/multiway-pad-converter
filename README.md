@@ -22,7 +22,7 @@
 
 ・PCENG-DIGITAL:PCエンジン デジタル。Dpad→移動。マル／バツ→I/IIに割り当て。
 
-・PCENG-ANALOG:PCエンジン アナログパッド。XE-1AP/CYBERSTICK互換。左アナログスティックのXY軸で移動。右アナログスティックのY軸でスロットル。
+・PCENG-ANALOG:PCエンジン アナログパッド。XE-1AP(PC mode)/CYBERSTICK互換。左アナログスティックのXY軸で移動。右アナログスティックのY軸でスロットル。
 
 ・PCENG-MOUSE:PCエンジン マウス。左アナログスティックのXY軸でカーソル移動。マル／バツ→右クリック/左クリックに割り当て。（＊起動後に本体リセットしないと認識できない）
 
@@ -38,9 +38,9 @@
 
 ・SFC-MOUSE:スーパーファミコン マウス。左アナログスティックのXY軸でカーソル移動。
 
-・X68K-DIGITAL:X68000。Dpad→移動。バツ／マル→B/A。
+・X68K-DIGITAL:X68000/MSX。Dpad→移動。バツ／マル→B/A。
 
-・X68K-ANALOG:X68000 アナログパッド。XE-1AP/CYBERSTICK互換。左アナログスティックのXY軸で移動。右アナログスティックのY軸でスロットル。
+・X68K-ANALOG:X68000/MSX アナログパッド。XE-1AP(PC mode)/CYBERSTICK互換。左アナログスティックのXY軸で移動。右アナログスティックのY軸でスロットル。
 
 ・MSX-PADDLE:MSX アルカノイド パドルコントローラ。左アナログスティックのX軸でバウスの移動。
 
