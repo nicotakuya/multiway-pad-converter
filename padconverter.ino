@@ -68,10 +68,16 @@ PROGMEM const char str_reqtest[]  ="REQ-TEST";
 #define TIMER_2USEC    (unsigned int)(0x10000-(T1HZ/500000))
 #define TIMER_4USEC    (unsigned int)(0x10000-(T1HZ/250000))
 #define TIMER_6USEC    (unsigned int)(0x10000-(T1HZ/166666))
+#define TIMER_8USEC    (unsigned int)(0x10000-(T1HZ/125000))
 #define TIMER_10USEC   (unsigned int)(0x10000-(T1HZ/100000))
 #define TIMER_12USEC   (unsigned int)(0x10000-(T1HZ/83333))
 #define TIMER_22USEC   (unsigned int)(0x10000-(T1HZ/45454))
+#define TIMER_26USEC   (unsigned int)(0x10000-(T1HZ/38461))
+#define TIMER_40USEC   (unsigned int)(0x10000-(T1HZ/25000))
 #define TIMER_50USEC   (unsigned int)(0x10000-(T1HZ/20000))
+#define TIMER_64USEC   (unsigned int)(0x10000-(T1HZ/15625))
+#define TIMER_74USEC   (unsigned int)(0x10000-(T1HZ/13513))
+#define TIMER_88USEC   (unsigned int)(0x10000-(T1HZ/11363))
 #define TIMER_100USEC  (unsigned int)(0x10000-(T1HZ/10000))
 #define TIMER_1MSEC    (unsigned int)(0x10000-(T1HZ/1000))
 
@@ -612,6 +618,7 @@ void lcd_puthex(char x,char y,char num)
 #define MD_BITALL  (MD_BITBC|MD_BITUDLR)
 #define MD_LH_H   MD_PORT|=MD_BITLH    // LH=H(XE-1AP)
 #define MD_LH_L   MD_PORT&=~MD_BITLH   // LH=L(XE-1AP)
+#define MD_LH_INVERT   MD_PORT^=MD_BITLH   // LH=L<->H(XE-1AP)
 #define MD_ACK_H  MD_PORT|=MD_BITACK   // ACK=H(XE-1AP)
 #define MD_ACK_L  MD_PORT&=~MD_BITACK  // ACK=L(XE-1AP)
 
@@ -1302,7 +1309,7 @@ void x68k_digital(void)
 // PC mode
 // DATA   +0    +1    +2    +3    +4    +5    +6    +7    +8    +9    +10
 // -----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+----
-//      |E*FG |ABCD |ch0H |ch1H |ch2H |ch3H |ch0L |ch1L |ch2L |ch3L | ?   |
+//      |E*FG |ABCD |ch0H |ch1H |ch2H |ch3H |ch0L |ch1L |ch2L |ch3L |ABA'B'
 //      +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
 
 // MD mode
@@ -1312,16 +1319,26 @@ void x68k_digital(void)
 //      +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
 //      <16us><34us>
 //      <  50usec  >
+//      <a><b><c><d>
+// fast 12 +4 +12 +22=50micro sec
+// 1/2  26 +8 +40 +22=96micro sec
+// 1/3  50 +8 +64 +22=144micro sec
+// 1/4  74 +8 +88 +22=192micro sec
+// REQ_____-------------------------------------------------------(fast)
+// REQ_________________-------------------------------------------( 1/2 )  
+// REQ_____________________________-------------------------------( 1/3 ) 
+// REQ_________________________________________-------------------( 1/4 )
 
 // ACK
-// -----+  +--+  +--+  +--+  +--+  +--+  +--+  +--+  +--+  +--+  +--+  +-------
-//      |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-//      +--+  +--+  +--+  +--+  +--+  +--+  +--+  +--+  +--+  +--+  +--+
+// loop < 0  ><  1 ><  2 ><  3 ><  4 ><  5 ><  6 ><  7 ><  8 ><  9 >< 10 >< 11 >
+// -----+  +--+  +--+  +--+  +--+  +--+  +--+  +--+  +--+  +--+  +--+  +--+  +---
+//      |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+//      +--+  +--+  +--+  +--+  +--+  +--+  +--+  +--+  +--+  +--+  +--+  +--+
 
 // LH
-// ---+       +-----+     +-----+     +-----+     +-----+     +-----+     +----
-//    |       |     |     |     |     |     |     |     |     |     |     |
-//    +-------+     +-----+     +-----+     +-----+     +-----+     +-----+
+//         +-----+     +-----+     +-----+     +-----+     +-----+     +-----+
+//         |     |     |     |     |     |     |     |     |     |     |     |
+// --------+     +-----+     +-----+     +-----+     +-----+     +-----+     +---
 
 #define CYBER_BITA      (1<<3)
 #define CYBER_BITB      (1<<2)
@@ -1336,10 +1353,13 @@ void x68k_analog(void)
 {
   unsigned char sendbuf[11];
   int datanum;
-  unsigned char ch0,ch1,ch2,temp;
+  unsigned char ch0,ch1,ch2,temp,speedmode;
+  unsigned int timea,timeb,timec,timed;
 
   mdport_init();
+  MD_LH_L;
   while(1){
+    cli();
     pad_read();
     temp = 0x0f;
     if(PAD_R1) temp &= ~CYBER_BITA;
@@ -1347,6 +1367,7 @@ void x68k_analog(void)
     if(PAD_L1) temp &= ~CYBER_BITC;
     if(PAD_L2) temp &= ~CYBER_BITD;
     sendbuf[0] = temp;
+    sendbuf[10] = temp | 0x03; //
 
     temp = 0x0f;
     if(PAD_MARU  ) temp &= ~CYBER_BITE1;
@@ -1366,34 +1387,56 @@ void x68k_analog(void)
     sendbuf[7] = ch1 & 0x0f;  // CH1 L
     sendbuf[8] = ch2 & 0x0f;  // CH2 L
     sendbuf[9] = 0;           // CH3 L
-    sendbuf[10] = 0xf; //未調査
 
-    cli();
+    if(speedmode == 0){
+      timea=TIMER_12USEC;    
+      timeb=TIMER_4USEC;
+      timec=TIMER_12USEC;
+      timed=TIMER_22USEC;
+    }else if(speedmode == 1){
+      timea=TIMER_26USEC;    
+      timeb=TIMER_8USEC;
+      timec=TIMER_40USEC;
+      timed=TIMER_22USEC;
+    }else if(speedmode == 2){
+      timea=TIMER_50USEC;    
+      timeb=TIMER_8USEC;
+      timec=TIMER_64USEC;
+      timed=TIMER_22USEC;
+    }else{
+      timea=TIMER_74USEC;    
+      timeb=TIMER_8USEC;
+      timec=TIMER_88USEC;
+      timed=TIMER_22USEC;
+    }
     UNTIL_REQ_H;
     UNTIL_REQ_L;
-    timer_uswait(TIMER_4USEC); //
+    timer_uswait(TIMER_4USEC);
 
-    for(datanum=0 ;datanum<11; datanum++){
-      if((datanum & 1)==0){
-        MD_LH_L;
-      }else{
-        MD_LH_H;
-      }
+    for(datanum=0 ;datanum<12; datanum++){
       temp = (MD_PORT & ~MD_BITUDLR);
       temp |= (sendbuf[datanum] << MD_DAT_SHIFT);
       MD_PORT = temp;
-
-      MD_ACK_L;
-      timer_uswait(TIMER_12USEC);
-      MD_ACK_H;
-
+  
       if((datanum & 1)==0){
-        timer_uswait(TIMER_4USEC);
+        MD_ACK_L;
+        timer_uswait(timea);
+        MD_ACK_H;
+        MD_LH_INVERT;
+        timer_uswait(timeb);
       }else{
-        timer_uswait(TIMER_22USEC);
+        if(REQ_PIN & REQ_BIT){
+          speedmode = datanum/2; // speed setting
+        }
+        MD_ACK_L;
+        timer_uswait(timec);
+        MD_ACK_H;
+        MD_LH_INVERT;
+        timer_uswait(timed);
       }
     }
-    MD_PORT |= MD_BITALL;
+    MD_PORT |= MD_BITUDLR;
+    MD_LH_L;
     sei();
   }
 }
@@ -1558,12 +1601,15 @@ void md_6button(void)
 //------ analog pad(XE-1AP) MD mode
 void md_analog(void)
 {
-  unsigned char sendbuf[11];
+  unsigned char sendbuf[12];
   int datanum;
   unsigned char ch0,ch1,ch2,temp;
 
+  sendbuf[11] = 0xf;        //未調査
   mdport_init();
+  MD_LH_L;
   while(1){
+    cli();
     pad_read();
     temp = 0x0f;
     if(PAD_MARU  ) temp &= ~CYBER_BITE1;
@@ -1571,6 +1617,7 @@ void md_analog(void)
     if(PAD_START ) temp &= ~CYBER_BITSTART;
     if(PAD_SELECT) temp &= ~CYBER_BITSELECT;
     sendbuf[0] = temp;
+    sendbuf[10] = temp;
 
     temp = 0x0f;
     if(PAD_R1 ) temp &= ~CYBER_BITA;
@@ -1590,32 +1637,31 @@ void md_analog(void)
     sendbuf[7] = ch0 & 0x0f;  // CH0 L
     sendbuf[8] = 0;           // CH3 L
     sendbuf[9] = ch2 & 0x0f;  // CH2 L
-    sendbuf[10] = 0xf;        //未調査
 
-    cli();
     UNTIL_REQ_H;
     UNTIL_REQ_L;
     timer_uswait(TIMER_4USEC);
 
-    for(datanum=0 ;datanum<11; datanum++){
-      if((datanum & 1)==0){
-        MD_LH_L;
-      }else{
-        MD_LH_H;
-      }
+    for(datanum=0 ;datanum<12; datanum++){
       temp = (MD_PORT & ~MD_BITUDLR);
       temp |= (sendbuf[datanum] << MD_DAT_SHIFT);
       MD_PORT = temp;
-      MD_ACK_L;
-      timer_uswait(TIMER_12USEC);
-      MD_ACK_H;
       if((datanum & 1)==0){
+        MD_ACK_L;
+        timer_uswait(TIMER_12USEC);
+        MD_ACK_H;
+        MD_LH_INVERT;
         timer_uswait(TIMER_4USEC);
       }else{
+        MD_ACK_L;
+        timer_uswait(TIMER_12USEC);
+        MD_ACK_H;
+        MD_LH_INVERT;
         timer_uswait(TIMER_22USEC);
       }
     }
     MD_PORT |= MD_BITALL;
+    MD_LH_L;
     sei();
   }
 }
@@ -2095,7 +2141,9 @@ void req_test2(void)
   REQ_PORT |= REQ_BIT;
   while(1){
     cli();
-    while((MD_PIN & X68K_BITA)!=0);
+    UNTIL_REQ_H;
+    UNTIL_REQ_L;
+//    while((MD_PIN & X68K_BITA)!=0);
 
     for(x=0; x<128; x++){
       temp = 0xff;      
