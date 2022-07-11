@@ -10,13 +10,17 @@
 
 ![multiway_pad_converter_beta](https://user-images.githubusercontent.com/5597377/174503133-65779209-de5d-49ed-879a-056d9470c409.jpg)
 
+## movie
+
+https://www.youtube.com/watch?v=0pmh02yc05E
+
 ## MENU
 
 ・MDRIVE-3BUTTON:メガドライブ 3ボタンパッド。Dpad→移動。START→START。四角／バツ／マル→A/B/Cに割り当て。
 
 ・MDDRIVE-6BUTTON:メガドライブ 6ボタンパッド。Dpad→移動。SELECT/START→MODE/START。四角／バツ／マル→A/B/C。三角/L1/R1/→X/Y/Zに割り当て。（＊認識しない場合は本体リセット）
 
-・MDDRIVE-ANALOG:メガドライブ アナログパッド。XE-1AP互換。左アナログスティックのXY軸で移動。右アナログスティックのY軸でスロットル。（＊起動後に本体リセットしないと認識できない）
+・MDDRIVE-ANALOG:メガドライブ アナログパッド。XE-1AP互換。左アナログスティックのXY軸で移動。右アナログスティックのY軸でスロットル。R1→A。R2→B。（＊起動後に本体リセットしないと認識できない）
 
 ・MDDRIVE-MOUSE:メガドライブ セガマウス:左アナログスティックのXY軸でカーソル移動。「雀皇登竜門」で確認。
 
