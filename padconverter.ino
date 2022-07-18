@@ -5,8 +5,7 @@
 
 #define USE_LCD   0      // LCD(AQM1602XA):0=not use / 1=use
 #define USE_OLED  1      // OLED(SSD1306) :0=not use / 1=use
-#define USE_CYBERSTICK 0 // cyberstick    :0=not use / 1=use
-#define USE_SERIAL 0     // serial port   :0=not use / 1=use
+#define USE_CYBERSTICK 0 // Cyberstick to MD:0=not use / 1=use
 #define EEPROMADDR 0     // address of mode number
 
 #if USE_LCD+USE_OLED
@@ -17,27 +16,31 @@
 #include <avr/interrupt.h>
 #include "8x8font.h"      // font data
 
-#define MENU_MAX  18
-#define MENU_LEN  (16+1)
-PROGMEM const char str_mode[MENU_MAX][MENU_LEN]={
-  "PAD-TEST        ",
-  "MDRIVE  -3BUTTON",
-  "MDRIVE  -6BUTTON",
-  "MDRIVE  -ANALOG ",
-  "MDRIVE  -MOUSE  ",
-  "PCENG   -DIGITAL",
-  "PCENG   -ANALOG ",
-  "PCENG   -MOUSE  ",
-  "FAMI    -DIGITAL",
-  "FAMI    -PADDLE ",
-  "FAMI    -CRAZYCL",
-  "SFC     -DIGITAL",
-  "SFC     -MOUSE  ",
-  "X68K    -DIGITAL",
-  "X68K    -ANALOG ",
-  "MSX     -PADDLE ",
-  "MSX-PADDLE-VOL  ",
-  "FAMI-PADDLE-VS. "
+#define MENU_MAX  22
+#define MENU_LEN  24
+PROGMEM const char str_mode[MENU_MAX][MENU_LEN+1]={
+  "MODE 0  PAD-TEST        ",
+  "MODE 1  MDRIVE  -3BUTTON",
+  "MODE 2  MDRIVE  -6BUTTON",
+  "MODE 3  MDRIVE  -ANALOG ",
+  "MODE 4  MDRIVE  -MOUSE  ",
+  "MODE 5  PCENG   -DIGITAL",
+  "MODE 6  PCENG   -ANALOG ",
+  "MODE 7  PCENG   -MOUSE  ",
+  "MODE 8  FAMI    -DIGITAL",
+  "MODE 9  FAMI    -PADDLE ",
+  "MODE 10 FAMI    -CRAZYCL",
+  "MODE 11 SFC     -DIGITAL",
+  "MODE 12 SFC     -MOUSE  ",
+  "MODE 13 X68K    -DIGITAL",
+  "MODE 14 X68K    -ANALOG ",
+  "MODE 15 MSX     -PADDLE ",
+  "APNDIX 1CYBERSTICK-MD  ",  /*16*/
+  "APNDIX 2FAMI-PADDLE-VS.",  /*17*/
+  "APNDIX 3MSX-PADDLE-VOL ",  /*18*/
+  "APNDIX 4FAMI-PADDLE-SPN",  /*19*/
+  "APNDIX 5MSX-PADDLE-SPN ",  /*20*/
+  "APNDIX 6SFC-PADDLE-SPN "   /*21*/
 };
 
 PROGMEM const char str_howto[]="M E N U";
@@ -637,6 +640,12 @@ void lcd_puthex(char x,char y,char num)
 #define UNTIL_REQ_H while((REQ_PIN&REQ_BIT)==0)
 #define UNTIL_REQ_L while((REQ_PIN&REQ_BIT)!=0)
 
+// spinner's button
+#define SPINNERBTN_PORT PORTC   // port
+#define SPINNERBTN_PIN  PINC    // pin
+#define SPINNERBTN_DDR  DDRC    // direction
+#define SPINNERBTN_BIT  (1<<2)  // bit mask
+
 // PS Game pad
 #define PAD_PORT  PORTB
 #define PAD_DDR   DDRB
@@ -882,6 +891,74 @@ void sfc_mouse(void)
   }
 }
 
+// superfamicom mouse arcade spinner
+void sfc_mouse_spinner(void)
+{
+  unsigned char bitcnt;
+  unsigned char nowpos,oldpos,temp;
+  unsigned long work;
+  int movecnt;
+
+  fcport_init();
+  Serial.begin(115200);
+  while (!Serial) {
+  }
+  SPINNERBTN_DDR &= ~SPINNERBTN_BIT;
+  SPINNERBTN_PORT |= SPINNERBTN_BIT; 
+
+  while(1) {
+    if(Serial.available() > 0){
+      nowpos = Serial.read();
+      break;
+    }
+  }
+
+  while(1){
+    oldpos = nowpos;
+    while(Serial.available() > 0) {
+      nowpos = Serial.read();
+    }
+    
+    work = 0x00010000;  //mouse data
+    temp = nowpos - oldpos;
+    if(temp < 0x80){  // plus
+      movecnt = temp;
+    }else{            // minus
+      movecnt = -(0x100 - temp);
+    }
+    if(movecnt < 0){
+      movecnt = -movecnt;
+      work |= 0x80+movecnt; //left
+    }else if(movecnt > 0){
+      work |= movecnt; //right
+    }
+    movecnt = 0;
+
+    // L button
+    if((SPINNERBTN_PIN & SPINNERBTN_BIT)==0){
+      work |= 0x00400000;      ; // button ON
+    }
+    UNTIL_LATCH_H;
+    cli();
+    UNTIL_LATCH_L;
+
+    bitcnt = 32;
+    while(bitcnt--){
+      if(work & 0x80000000){
+        FC_DAT_L; // DAT=1
+      }else{
+        FC_DAT_H; // DAT=0
+      }
+      work <<= 1;
+      UNTIL_FCCLK_L;
+      UNTIL_FCCLK_H;
+      if((LATCH_PIN & LATCH_BIT)!=0)break; // end of latch
+    }
+    FC_DAT_H;  // DAT=0
+    sei();
+  }
+}
+
 // super famicom digital
 //  DAT
 //    15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
@@ -1082,6 +1159,7 @@ void fc_arkanoid(void)
     if(posx < 1 )posx=1;
     if(posx >254)posx=254;
     senddata = (unsigned char)posx;
+    
     if(0x80 & senddata){
       FC_DAT2_H;
     }else{
@@ -1175,6 +1253,53 @@ void fc_arkanoid_vs(void)
     FC_D2B4_L;
   }
 }
+
+// famicom arkanoid arcade spinner
+void fc_arkanoid_spinner(void)
+{
+  unsigned char loopcnt;
+  unsigned char senddata;
+
+  Serial.begin(115200);
+  while (!Serial) {
+  }
+
+  SPINNERBTN_DDR &= ~SPINNERBTN_BIT;
+  SPINNERBTN_PORT |= SPINNERBTN_BIT; 
+  fcport_init();
+  while(1){
+    sei();
+    if((SPINNERBTN_PIN & SPINNERBTN_BIT)==0){
+      FC_DAT_L; // button ON
+    }else{
+      FC_DAT_H; // button OFF 
+    }
+    while(Serial.available() > 0) {
+      senddata = Serial.read();
+    }
+    if(0x80 & senddata){
+      FC_DAT2_H;
+    }else{
+      FC_DAT2_L;
+    }
+    cli();
+    UNTIL_LATCH_H;
+    UNTIL_LATCH_L;
+    loopcnt = 8;
+    while(loopcnt--){
+      UNTIL_FCCLK2_L;
+      senddata <<= 1;
+      UNTIL_FCCLK2_H;
+      if(0x80 & senddata){
+        FC_DAT2_H;
+      }else{
+        FC_DAT2_L;
+      }
+    }
+    FC_DAT2_L;
+  }
+}
+
 
 // ---- famicom crazy climber
 // [left hand][right hand]
@@ -2009,7 +2134,6 @@ void msx_arkanoid(void)
   timer_delay(16);
   posx = 128;   // software position
   centerx = PAD_LX;
-  cli();
   while(1){
     UNTIL_REQ_L;
     UNTIL_REQ_H;
@@ -2029,6 +2153,8 @@ void msx_arkanoid(void)
     if(posx < 1 )posx=1;
     if(posx >254)posx=254;
     senddata = (unsigned char)posx;    
+
+    cli();
     loopcnt = 8;
     while(loopcnt--){
       if(0x80 & senddata){
@@ -2045,6 +2171,7 @@ void msx_arkanoid(void)
       senddata <<= 1;
     }
     MD_PORT &= ~ARKA_BITDAT;
+    sei();
   }
 }
 
@@ -2097,7 +2224,78 @@ void msx_arkanoid_vol(void)
   }
 }
 
-//------ (debug)PlayStation pad input test
+//---- MSX arkanoid arcade spinner
+void msx_arkanoid_spinner(void)
+{
+  unsigned char loopcnt;
+  unsigned char senddata;
+#define ARKA_BITDAT   X68K_BITUP  
+#define ARKA_BITBTN   X68K_BITDOWN
+#define ARKA_BITCLK   X68K_BITA
+
+  Serial.begin(115200);
+  while (!Serial) {
+  }
+  SPINNERBTN_DDR &= ~SPINNERBTN_BIT;
+  SPINNERBTN_PORT |= SPINNERBTN_BIT; 
+  mdport_init();
+  MD_DDR &= ~ARKA_BITCLK; // direction input
+
+  while(1){
+    UNTIL_REQ_L;
+    UNTIL_REQ_H;
+    if((SPINNERBTN_PIN & SPINNERBTN_BIT)==0){
+      MD_PORT &= ~ARKA_BITBTN;
+    }else{
+      MD_PORT |= ARKA_BITBTN;
+    }
+    while(Serial.available() > 0) {
+      senddata = Serial.read();
+    }
+    cli();
+    loopcnt = 8;
+    while(loopcnt--){
+      if(0x80 & senddata){
+        MD_PORT |= ARKA_BITDAT;
+      }else{
+        MD_PORT &= ~ARKA_BITDAT;
+      }
+      // until CLK=low
+      while((MD_PIN & ARKA_BITCLK)!=0){
+        if((REQ_PIN & REQ_BIT)==0)break;
+      }
+      if((REQ_PIN & REQ_BIT)==0)break;
+      while((MD_PIN & ARKA_BITCLK)==0); // until CLK=high
+      senddata <<= 1;
+    }
+    MD_PORT &= ~ARKA_BITDAT;
+    sei();
+  }
+}
+
+//---- (debug)arcade spinner test
+void spinner_test(void)
+{
+  unsigned char nowpos = 128;
+#if USE_OLED
+  Serial.begin(115200);
+  while (!Serial) {
+  }
+  SPINNERBTN_DDR &= ~SPINNERBTN_BIT;
+  SPINNERBTN_PORT |= SPINNERBTN_BIT;
+  vram_clear();
+  while(1){
+    while(Serial.available() > 0) {
+      nowpos = Serial.read();
+    }
+    vram_puthex(0,16*0,nowpos);
+    oled_redraw();
+    timer_delay(16);
+  }
+#endif
+}
+
+//---- (debug)PlayStation pad input test
 void pad_test(void)
 {
   char i,x,y;
@@ -2136,6 +2334,7 @@ void pad_test(void)
 #endif
 }
 
+// debug
 void req_test2(void)
 {
   unsigned char temp;
@@ -2399,56 +2598,68 @@ void launch(char modenum)
 #endif
   switch(modenum)
   {
-  case 1:// MD 3-BUTTON
+  case 1: // MD 3-BUTTON
     md_3button();
     break;
-  case 2:// MD 6-BUTTON
+  case 2: // MD 6-BUTTON
     md_6button();
     break;
-  case 3:// MD ANALOG
+  case 3: // MD ANALOG
     md_analog();
     break;
-  case 4:// MD SEGA MOUSE
+  case 4: // MD SEGA MOUSE
     md_segamouse(); //
     break;
-  case 5:// PCE DIGITAL
+  case 5: // PCE DIGITAL
     x68k_digital();
     break;
-  case 6:// PCE ANALOG
+  case 6: // PCE ANALOG
     x68k_analog();  //
     break;
-  case 7:// PCE MOUSE
+  case 7: // PCE MOUSE
     pce_mouse();
     break;
-  case 8:// FC DIGITAL
+  case 8: // FC DIGITAL
     fc_digital();
     break;
-  case 9:// FC ARKANOID
+  case 9: // FC ARKANOID
     fc_arkanoid();  //
     break;
-  case 10://  FC CrazyClimb
+  case 10:  //  FC CrazyClimb
     fc_crazyclimber();
     break;
-  case 11://  SFC DIGITAL,
+  case 11:  //  SFC DIGITAL,
     sfc_digital();
     break;
-  case 12://  SFC MOUSE
+  case 12:  //  SFC MOUSE
     sfc_mouse();  //
     break;
-  case 13://  X68 DIGITAL,
+  case 13:  //  X68 DIGITAL,
     x68k_digital();
     break;
-  case 14://  X68 ANALOG,
+  case 14:  //  X68 ANALOG,
     x68k_analog();  //
     break;
-  case 15://  MSX ARKANOID
+  case 15:  //  MSX ARKANOID
     msx_arkanoid();
     break;
-  case 16://  MSX ARKANOID vol edition
+  case 16:  // (appendix 1)CyberStick to megadrive
+    cyber_to_megadrive();
+    break;
+  case 17:  // (appendix 2)FC ARKANOID VS.mode
+    fc_arkanoid_vs();  //
+    break;
+  case 18:  // (appendix 3)MSX ARKANOID volume edition
     msx_arkanoid_vol();
     break;
-  case 17:// FC ARKANOID VS.
-    fc_arkanoid_vs();  //
+  case 19:  // (appendix 4)FC ARKANOID SPINNER
+    fc_arkanoid_spinner();  //
+    break;
+  case 20:  // (appendix 5)MSX ARKANOID SPINNER
+    msx_arkanoid_spinner();  //
+    break;
+  case 21:  // (appendix 6)SFC MOUSE SPINNER
+    sfc_mouse_spinner();  //
     break;
   default:
     pad_test(); //debug
@@ -2472,24 +2683,16 @@ void setup()
   lcd_init(); // AQM1602XA
 #endif
 
-#if USE_SERIAL
-  Serial.begin(115200);
-  Serial.print("hello\n");
-//  if (Serial.available() > 0) {
-//    ret = Serial.read();
-//  }
-#endif
-
 #if USE_CYBERSTICK
   cyber_to_megadrive();
 #endif
-
   adc_init();
   pad_init();
 
   modenum = menu();
   launch(modenum);
 
+//  spinner_test(); //debug
 //  adc_test(); // debug
 //  pad_test(); //debug
 //  timer_test(); //debug
