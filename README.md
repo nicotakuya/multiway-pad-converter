@@ -16,48 +16,57 @@ https://www.youtube.com/watch?v=0pmh02yc05E
 
 ## MENU
 
-・MDRIVE-3BUTTON:メガドライブ 3ボタンパッド。Dpad→移動。START→START。四角／バツ／マル→A/B/Cに割り当て。
+・(Mode 0):DualShock2のテスト。
 
-・MDDRIVE-6BUTTON:メガドライブ 6ボタンパッド。Dpad→移動。SELECT/START→MODE/START。四角／バツ／マル→A/B/C。三角/L1/R1/→X/Y/Zに割り当て。（＊認識しない場合は本体リセット）
+・(Mode 1)MDRIVE-3BUTTON:メガドライブ 3ボタンパッド。Dpad→移動。START→START。四角／バツ／マル→A/B/Cに割り当て。
 
-・MDDRIVE-ANALOG:メガドライブ アナログパッド。XE-1AP互換。左アナログスティックのXY軸で移動。右アナログスティックのY軸でスロットル。R1→A。R2→B。（＊起動後に本体リセットしないと認識できない）
+・(Mode 2)MDDRIVE-6BUTTON:メガドライブ 6ボタンパッド。Dpad→移動。SELECT/START→MODE/START。四角／バツ／マル→A/B/C。三角/L1/R1/→X/Y/Zに割り当て。（＊認識しない場合は本体リセット）
 
-・MDDRIVE-MOUSE:メガドライブ セガマウス:左アナログスティックのXY軸でカーソル移動。「雀皇登竜門」で確認。
+・(Mode 3)MDDRIVE-ANALOG:メガドライブ アナログパッド。XE-1AP互換。左アナログスティックのXY軸で移動。右アナログスティックのY軸でスロットル。R1→A。R2→B。（＊起動後に本体リセットしないと認識できない）
 
-・PCENG-DIGITAL:PCエンジン デジタル。Dpad→移動。マル／バツ→I/IIに割り当て。
+・(Mode 4)MDDRIVE-MOUSE:メガドライブ セガマウス:左アナログスティックのXY軸でカーソル移動。「雀皇登竜門」で確認。
 
-・PCENG-ANALOG:PCエンジン アナログパッド。XE-1AP(PC mode)/CYBERSTICK互換。左アナログスティックのXY軸で移動。右アナログスティックのY軸でスロットル。
+・(Mode 5)PCENG-DIGITAL:PCエンジン デジタル。Dpad→移動。マル／バツ→I/IIに割り当て。
 
-・PCENG-MOUSE:PCエンジン マウス。左アナログスティックのXY軸でカーソル移動。マル／バツ→右クリック/左クリックに割り当て。（＊起動後に本体リセットしないと認識できない）
+・(Mode 6)PCENG-ANALOG:PCエンジン アナログパッド。XE-1AP(PC mode)/CYBERSTICK互換。左アナログスティックのXY軸で移動。右アナログスティックのY軸でスロットル。
 
-・FAMI-DIGITAL:ファミコン。Dpad→移動。SELECT/START→SELECT/START。バツ／マル→B/A。
+・(Mode 7)PCENG-MOUSE:PCエンジン マウス。左アナログスティックのXY軸でカーソル移動。マル／バツ→右クリック/左クリックに割り当て。（＊起動後に本体リセットしないと認識できない）
 
-・FAMI-PADDLE:ファミコン アルカノイド パドルコントローラ。左アナログスティックのX軸でバウスの移動。
+・(Mode 8)FAMI-DIGITAL:ファミコン。Dpad→移動。SELECT/START→SELECT/START。バツ／マル→B/A。
 
-・FAMI-PADDLE-VS.:ファミコン アルカノイドII VS.mode:Port C0～1に可変抵抗、Port C2～4にボタンを追加することで、対戦モード時に2人同時プレイ。
+・(Mode 9)FAMI-PADDLE:ファミコン アルカノイド パドルコントローラ。左アナログスティックのX軸でバウスの移動。
 
-・FAMI-CRAZYCL:ファミコン クレイジークライマー。縦持ち状態のゲームパッド2個を再現。Dpad→左手。四角／三角／マル／バツ→右手。
+・(Mode 10)FAMI-CRAZYCL:ファミコン クレイジークライマー。縦持ち状態のゲームパッド2個を再現。Dpad→左手。四角／三角／マル／バツ→右手。
 
-・SFC-DIGITAL:スーパーファミコン。Dpad→移動。SELECT/START→SELECT/START。バツ／マル→B/A。四角／三角→X/Y。L1／R1→L/R。
+・(Mode 11)SFC-DIGITAL:スーパーファミコン。Dpad→移動。SELECT/START→SELECT/START。バツ／マル→B/A。四角／三角→X/Y。L1／R1→L/R。
 
-・SFC-MOUSE:スーパーファミコン マウス。左アナログスティックのXY軸でカーソル移動。
+・(Mode 12)SFC-MOUSE:スーパーファミコン マウス。左アナログスティックのXY軸でカーソル移動。
 
-・X68K-DIGITAL:X68000/MSX。Dpad→移動。バツ／マル→B/A。
+・(Mode 13)X68K-DIGITAL:X68000/MSX。Dpad→移動。バツ／マル→B/A。
 
-・X68K-ANALOG:X68000/MSX アナログパッド。XE-1AP(PC mode)/CYBERSTICK互換。左アナログスティックのXY軸で移動。右アナログスティックのY軸でスロットル。
+・(Mode 14)X68K-ANALOG:X68000/MSX アナログパッド。XE-1AP(PC mode)/CYBERSTICK互換。左アナログスティックのXY軸で移動。右アナログスティックのY軸でスロットル。
 
-・MSX-PADDLE:MSX アルカノイド パドルコントローラ。左アナログスティックのX軸でバウスの移動。
+・(Mode 15)MSX-PADDLE:MSX アルカノイド パドルコントローラ。左アナログスティックのX軸でバウスの移動。
 
-・MSX-PADDLE-VOL:MSX アルカノイド パドルコントローラのボリューム版。Port C0に可変抵抗、Port C2にボタンを追加することで、ボリューム操作が可能。
+![appendix_chart](https://user-images.githubusercontent.com/5597377/179448061-4a4598af-71a1-4e29-89b1-ed9ebf80b253.png)
 
+・(Appendix 1):CYBERSTICK→メガドライブ。Dsub9pinコネクタを追加して、ソースコード内の"USE_CYBERSTICK"を"1"に変更することで、CYBERSTICK→メガドライブ アナログパッドへの変換に対応。
+
+・(Appendix 2)FAMI-PADDLE-VS.:ファミコン版アルカノイドII VS.mode:Port C0～1に可変抵抗、Port C2～4にボタンを追加することで、対戦モード時に2人同時プレイ。
+
+・(Appendix 3)MSX-PADDLE-VOL:MSX版アルカノイド パドルコントローラのボリューム版。Port C0に可変抵抗、Port C2にボタンを追加することで、ボリューム操作が可能。
+
+・(Appendix 4):ファミコン版アルカノイドのSpinner対応。UART RX端子にDecorderを接続する必要があります。
+
+・(Appendix 5):MSX版アルカノイドのSpinner対応。UART RX端子にDecorderを接続する必要があります。
+
+・(Appendix 6):スーパーファミコン版アルカノイドのSpinner対応。UART RX端子にDecorderを接続する必要があります。
 
 ## how to use
 
 DualShock2のいずれかのボタンを押しっぱなしの状態で、電源オンまたはリセットすると、メニューが起動します。
 
 選択したモード番号はEEPROMに保存されます。以後、保存したモードで起動します。
-
-Dsub9pinコネクタを追加して、ソースコード内の"USE_CYBERSTICK"を"1"に変更することで、CYBERSTICK→メガドライブ アナログパッドへの変換に対応。
 
 ## 回路図
 
