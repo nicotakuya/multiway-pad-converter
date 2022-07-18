@@ -64,6 +64,10 @@ https://www.youtube.com/watch?v=0pmh02yc05E
 
 ## how to use
 
+"padconverter.ino":プログラムです。Arduino IDEで実行します。
+
+"SpinnerDecorder.ino":「Arcade Spinner」のパルスを検出するためのsub CPU用のプログラムです。「Arcade Spinner」を接続しない場合はsub CPUは不要です。
+
 DualShock2のいずれかのボタンを押しっぱなしの状態で、電源オンまたはリセットすると、メニューが起動します。
 
 選択したモード番号はEEPROMに保存されます。以後、保存したモードで起動します。
