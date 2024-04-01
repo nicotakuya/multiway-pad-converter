@@ -62,19 +62,23 @@ https://www.youtube.com/watch?v=0pmh02yc05E
 
 ・(Appendix 6):スーパーファミコン版アルカノイドのSpinner対応。UART RX端子にDecorderを接続する必要があります。
 
-## how to use
+## Files
 
-"padconverter.ino":プログラムです。Arduino IDEで実行します。
+・8x8font.h : フォントデータ。 https://github.com/nicotakuya/8pixelfont
 
-"SpinnerDecorder.ino":「Arcade Spinner」のパルスを検出するためのsub CPU用のプログラムです。「Arcade Spinner」を接続しない場合はsub CPUは不要です。
+・padconverter.ino :プログラムです。Arduino IDEで実行します。
+
+・SpinnerDecorder.ino :「Arcade Spinner」のパルスを検出するためのsub CPU用のプログラムです。「Arcade Spinner」を接続しない場合はsub CPUは不要です。
+
+・pad_conv_schematics.png : 回路図。
+
+・pad_conv_schematics_appendix.png : 追加の回路図。
+
+## How to use
 
 DualShock2のいずれかのボタンを押しっぱなしの状態で、電源オンまたはリセットすると、メニューが起動します。
 
 選択したモード番号はEEPROMに保存されます。以後、保存したモードで起動します。
-
-## 回路図
-
-"pad_conv_schematics.png" を参照。
 
 ## parts list
 
